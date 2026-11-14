@@ -16,9 +16,10 @@ export const VegetableAutocomplete = ({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const containerRef = useRef(null);
+  const isSelectingRef = useRef(false);
 
   useEffect(() => {
-    setSearchTerm(value);
+    setSearchTerm(value || '');
   }, [value]);
 
   // Filter vegetables based on English name or Tamil name
@@ -32,7 +33,9 @@ export const VegetableAutocomplete = ({
 
   // Check if current search term is an exact match to an existing vegetable
   const hasExactMatch = vegetables.some(
-    (v) => v.name?.toLowerCase().trim() === searchTerm.toLowerCase().trim()
+    (v) =>
+      v.name?.toLowerCase().trim() === searchTerm.toLowerCase().trim() ||
+      v.tamilName?.trim() === searchTerm.trim()
   );
 
   // Close dropdown on outside click
@@ -47,11 +50,27 @@ export const VegetableAutocomplete = ({
   }, []);
 
   const handleSelectVegetable = (veg) => {
+    if (!veg) return;
+    isSelectingRef.current = true;
     setSearchTerm(veg.name);
     setIsOpen(false);
-    if (onChange) onChange(veg.name);
-    if (onSelect) onSelect(veg);
-    if (onEnterNext) onEnterNext();
+
+    // If onSelect is provided, delegate full selection handling to it
+    // Otherwise fall back to onChange
+    if (onSelect) {
+      onSelect(veg);
+    } else if (onChange) {
+      onChange(veg.name);
+    }
+
+    if (onEnterNext) {
+      onEnterNext();
+    }
+
+    // Protect against any asynchronous blur events overwriting this selection
+    setTimeout(() => {
+      isSelectingRef.current = false;
+    }, 200);
   };
 
   const handleInputChange = (e) => {
@@ -66,6 +85,9 @@ export const VegetableAutocomplete = ({
   };
 
   const handleBlur = () => {
+    // If user just clicked or pressed Enter on a vegetable, ignore blur event
+    if (isSelectingRef.current) return;
+
     // When clicking outside or tabbing to next column
     const trimmed = searchTerm.trim();
     if (!trimmed) {

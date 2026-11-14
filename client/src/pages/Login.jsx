@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 
 export const Login = () => {
-  const [username, setUsername] = useState('raja');
-  const [password, setPassword] = useState('raja');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -81,9 +82,10 @@ export const Login = () => {
                 type="text"
                 required
                 autoFocus
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="raja"
+                placeholder="Enter username"
                 className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
               />
               <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
@@ -96,20 +98,25 @@ export const Login = () => {
             </label>
             <div className="relative">
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="raja"
-                className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
+                placeholder="Enter password"
+                className="w-full pl-9 pr-10 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
               />
               <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                title={showPassword ? 'Hide password' : 'Show password'}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-          </div>
-
-          <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-xs text-[#034D28] font-bold">
-            <ShieldCheck className="w-4 h-4 flex-shrink-0 text-[#034D28]" />
-            <span>Login credentials: Username <strong>raja</strong> / Password <strong>raja</strong></span>
           </div>
 
           <button

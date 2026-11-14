@@ -127,37 +127,69 @@ export const NewBill = () => {
     }, 50);
   };
 
-  // Row update helper
+  // Row update helper (functional update to prevent state clobbering)
   const handleRowChange = (index, field, value) => {
-    const updated = [...items];
-    const row = { ...updated[index], [field]: value };
+    setItems((prevItems) => {
+      const updated = [...prevItems];
+      if (index < 0 || index >= updated.length) return prevItems;
 
-    // In 5-column bill: Auto-compute Amount if rate or weight changes
-    if (field === 'rate' || field === 'weight') {
-      const r = Number(field === 'rate' ? value : row.rate) || 0;
-      const w = Number(field === 'weight' ? value : row.weight) || 0;
-      if (r > 0 && w > 0) {
-        row.amount = mul2(r, w);
+      const row = { ...updated[index], [field]: value };
+
+      // In 5-column bill: Auto-compute Amount if rate or weight changes
+      if (field === 'rate' || field === 'weight') {
+        const r = Number(field === 'rate' ? value : row.rate) || 0;
+        const w = Number(field === 'weight' ? value : row.weight) || 0;
+        if (r > 0 && w > 0) {
+          row.amount = mul2(r, w);
+        } else if (r === 0 || w === 0) {
+          row.amount = '';
+        }
       }
-    }
 
-    updated[index] = row;
-    setItems(updated);
+      updated[index] = row;
+      return updated;
+    });
+  };
+
+  // Dedicated atomic vegetable selection handler for a row
+  const handleSelectVegetableForRow = (rowIndex, veg) => {
+    if (!veg) return;
+    const vegRate = veg.defaultRate > 0 ? String(veg.defaultRate) : '';
+
+    setItems((prevItems) => {
+      const updated = [...prevItems];
+      if (rowIndex < 0 || rowIndex >= updated.length) return prevItems;
+
+      const currentRow = updated[rowIndex] || createEmptyRow();
+      const w = Number(currentRow.weight) || 0;
+      const r = Number(vegRate) || 0;
+      const newAmount = r > 0 && w > 0 ? mul2(r, w) : (r === 0 && w > 0 ? '' : currentRow.amount);
+
+      updated[rowIndex] = {
+        ...currentRow,
+        vegetable: veg._id || null,
+        particulars: veg.name || '',
+        tamilName: veg.tamilName || '',
+        rate: vegRate,
+        amount: newAmount,
+      };
+      return updated;
+    });
   };
 
   // Row addition
   const handleAddRow = () => {
-    setItems([...items, createEmptyRow()]);
+    setItems((prev) => [...prev, createEmptyRow()]);
   };
 
   // Row deletion
   const handleDeleteRow = (index) => {
-    if (items.length <= 1) {
-      setItems([createEmptyRow()]);
-      return;
-    }
-    const updated = items.filter((_, i) => i !== index);
-    setItems(updated);
+    setItems((prev) => {
+      if (prev.length <= 1) {
+        return [createEmptyRow()];
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   // Quick Add Vegetable handler
@@ -171,25 +203,9 @@ export const NewBill = () => {
     // Add to master list
     setVegetables((prev) => [newVeg, ...prev]);
 
-    // Update row
+    // Update row atomically
     if (quickAddRowIndex !== null && quickAddRowIndex < items.length) {
-      const updated = [...items];
-      const defRate = newVeg.defaultRate > 0 ? newVeg.defaultRate : updated[quickAddRowIndex].rate;
-      const w = Number(updated[quickAddRowIndex].weight) || 0;
-      let newAmount = updated[quickAddRowIndex].amount;
-      if (defRate > 0 && w > 0) {
-        newAmount = mul2(defRate, w);
-      }
-
-      updated[quickAddRowIndex] = {
-        ...updated[quickAddRowIndex],
-        vegetable: newVeg._id,
-        particulars: newVeg.name,
-        tamilName: newVeg.tamilName || '',
-        rate: defRate,
-        amount: newAmount,
-      };
-      setItems(updated);
+      handleSelectVegetableForRow(quickAddRowIndex, newVeg);
 
       // Focus Bag or Rate cell of that row
       setTimeout(() => {
@@ -200,6 +216,7 @@ export const NewBill = () => {
         }
       }, 50);
     }
+    setQuickAddOpen(false);
   };
 
   // 6-Row Authoritative Summary Calculations
@@ -568,21 +585,28 @@ export const NewBill = () => {
                         inputRef={(el) => (cellRefs.current[idx].particulars = el)}
                         value={row.particulars}
                         vegetables={vegetables}
-                        onChange={(val) => handleRowChange(idx, 'particulars', val)}
-                        onSelect={(veg) => {
-                          handleRowChange(idx, 'vegetable', veg._id);
-                          handleRowChange(idx, 'particulars', veg.name);
-                          handleRowChange(idx, 'tamilName', veg.tamilName || '');
-                          if (veg.defaultRate > 0 && !row.rate) {
-                            handleRowChange(idx, 'rate', veg.defaultRate);
+                        onChange={(val) => {
+                          handleRowChange(idx, 'particulars', val);
+                          if (!val) {
+                            handleRowChange(idx, 'vegetable', null);
+                            handleRowChange(idx, 'tamilName', '');
                           }
-                          // Focus next cell (Bag)
+                        }}
+                        onSelect={(veg) => {
+                          handleSelectVegetableForRow(idx, veg);
+                          // Auto focus next cell: Bag if rate populated, otherwise Rate
                           setTimeout(() => {
-                            cellRefs.current[idx]?.bag?.focus();
+                            if (veg.defaultRate > 0) {
+                              cellRefs.current[idx]?.bag?.focus();
+                            } else {
+                              cellRefs.current[idx]?.rate?.focus();
+                            }
                           }, 50);
                         }}
                         onOpenQuickAdd={(typed) => handleOpenQuickAdd(typed, idx)}
-                        onEnterNext={() => cellRefs.current[idx]?.bag?.focus()}
+                        onEnterNext={() => {
+                          cellRefs.current[idx]?.bag?.focus();
+                        }}
                       />
                     </td>
 
