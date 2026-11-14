@@ -83,10 +83,11 @@ const connectDB = async () => {
       targetDbName = 'cpn_vegetables_test_db';
     }
 
+    const isServerless = Boolean(process.env.VERCEL);
     const conn = await mongoose.connect(mongoUri, {
       dbName: targetDbName,
-      maxPoolSize: 20,
-      minPoolSize: 2,
+      maxPoolSize: isServerless ? 10 : 20,
+      minPoolSize: isServerless ? 0 : 2,
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
       connectTimeoutMS: 10000,
@@ -108,20 +109,26 @@ const connectDB = async () => {
 /**
  * Express middleware to prevent database-dependent requests
  * from executing before the database connection is fully established.
+ * Automatically awaits connectDB() during cold starts.
  */
-const checkDBReady = (req, res, next) => {
+const checkDBReady = async (req, res, next) => {
   // Allow health-check without readyState === 1
   if (req.path === '/health' || req.path === '/api/health') {
     return next();
   }
 
   if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({
-      success: false,
-      message:
-        'Database connection is initializing or unavailable. Please retry shortly.',
-      readyState: mongoose.connection.readyState,
-    });
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error('[MongoDB] Cold start connection error in checkDBReady:', err.message);
+      return res.status(503).json({
+        success: false,
+        message:
+          'Database connection is initializing or unavailable. Please retry shortly.',
+        readyState: mongoose.connection.readyState,
+      });
+    }
   }
   next();
 };

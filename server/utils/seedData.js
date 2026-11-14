@@ -81,17 +81,23 @@ const seedInitialData = async () => {
       }
     }
 
-    // 3. Ensure single default admin user 'raja' with password 'raja' exists
-    const rajaUser = await User.findOne({ username: 'raja' });
-    if (!rajaUser) {
-      await User.create({
-        username: 'raja',
-        password: 'raja',
-        name: 'Raja',
-        role: 'admin',
-        isActive: true,
-      });
-      console.log('[Seed] Admin user "raja" created.');
+    // 3. Ensure admin user exists in development/test, but in production NEVER auto-create default credentials
+    const adminCount = await User.countDocuments({ role: 'admin' });
+    if (adminCount === 0) {
+      if (process.env.NODE_ENV === 'production') {
+        console.warn(
+          '[Security] Notice: No admin account found in production database. Please run "npm run seed-admin" to provision an administrator securely.'
+        );
+      } else {
+        await User.create({
+          username: 'raja',
+          password: 'raja',
+          name: 'Raja',
+          role: 'admin',
+          isActive: true,
+        });
+        console.log('[Seed] Development admin user "raja" created.');
+      }
     }
 
     // Remove obsolete 'admin' user if present to enforce single login

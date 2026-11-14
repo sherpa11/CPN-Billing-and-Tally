@@ -25,10 +25,21 @@ const backupRoutes = require('./routes/backupRoutes');
 
 const app = express();
 
+let isInitialSeeded = false;
+const runInitialSeedOnce = async () => {
+  if (isInitialSeeded) return;
+  try {
+    await seedInitialData();
+    isInitialSeeded = true;
+  } catch (err) {
+    console.warn('[CPN Server] Initial seeding notice:', err.message);
+  }
+};
+
 // Connect to MongoDB Atlas / Local Database and run idempotent initialization
 connectDB()
   .then(() => {
-    seedInitialData();
+    runInitialSeedOnce();
   })
   .catch((err) => {
     console.error('[CPN Server] Initial database connection error:', err.message);
@@ -86,13 +97,41 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/backup', backupRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/health'], async (req, res) => {
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await connectDB();
+    } catch (err) {
+      // Allow degraded status reporting below
+    }
+  }
   const isDbConnected = mongoose.connection.readyState === 1;
   res.status(isDbConnected ? 200 : 503).json({
     status: isDbConnected ? 'healthy' : 'degraded',
     database: isDbConnected ? 'connected' : 'disconnected',
     shop: 'CPN VEGETABLES',
     time: new Date().toISOString(),
+  });
+});
+
+// Base API index endpoint
+app.get(['/api', '/api/'], (req, res) => {
+  res.json({
+    success: true,
+    service: 'CPN VEGETABLES Wholesale Billing API',
+    status: 'online',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth/login',
+      vegetables: '/api/vegetables',
+      customers: '/api/customers',
+      bills: '/api/bills',
+      payments: '/api/payments',
+      reports: '/api/reports/dashboard-stats',
+      settings: '/api/settings',
+      backup: '/api/backup/export',
+    },
   });
 });
 
@@ -115,7 +154,8 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 5000;
 let server = null;
 
-if (process.env.NODE_ENV !== 'test') {
+// Only start HTTP listener for standalone / local server (never inside Vercel serverless runtime)
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   server = app.listen(PORT, () => {
     console.log(
       `[CPN Server] Running on http://localhost:${PORT} in ${process.env.NODE_ENV || 'production'} mode`
