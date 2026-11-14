@@ -98,17 +98,20 @@ app.use('/api/backup', backupRoutes);
 
 // Health check endpoint
 app.get(['/api/health', '/health'], async (req, res) => {
+  let dbError = null;
   if (mongoose.connection.readyState !== 1) {
     try {
       await connectDB();
     } catch (err) {
-      // Allow degraded status reporting below
+      dbError = err.message;
     }
   }
   const isDbConnected = mongoose.connection.readyState === 1;
   res.status(isDbConnected ? 200 : 503).json({
     status: isDbConnected ? 'healthy' : 'degraded',
     database: isDbConnected ? 'connected' : 'disconnected',
+    hasMongoUri: Boolean(process.env.MONGODB_URI),
+    error: dbError || (isDbConnected ? null : 'Database connection not ready'),
     shop: 'CPN VEGETABLES',
     time: new Date().toISOString(),
   });

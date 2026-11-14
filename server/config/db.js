@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
-// Ensure reliable SRV DNS lookup for MongoDB Atlas across all Windows / ISP networks
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
-} catch (e) {
-  // Continue with default resolver if sandbox restricts setServers
+// Ensure reliable SRV DNS lookup for MongoDB Atlas across Windows / ISP networks
+// Do not override DNS servers on Linux / Vercel serverless where Lambda internal resolvers must be used
+if (process.platform === 'win32') {
+  try {
+    dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+  } catch (e) {
+    // Continue with default resolver if sandbox restricts setServers
+  }
 }
 
 /**
@@ -43,9 +46,9 @@ const connectDB = async () => {
 
   if (!mongoUri) {
     const errorMsg =
-      '[MongoDB] FATAL: MONGODB_URI environment variable is not defined. Please configure server/.env with your MongoDB Atlas connection string.';
+      '[MongoDB] FATAL: MONGODB_URI environment variable is not defined. Please configure Vercel Project Settings > Environment Variables with your MongoDB Atlas connection string.';
     console.error(errorMsg);
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
       process.exit(1);
     }
     throw new Error(errorMsg);
@@ -91,7 +94,7 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
       connectTimeoutMS: 10000,
-      family: 4, // Force IPv4 to prevent slow IPv6 DNS resolution
+      family: isServerless ? undefined : 4,
       autoIndex: true,
     });
 
@@ -126,6 +129,8 @@ const checkDBReady = async (req, res, next) => {
         success: false,
         message:
           'Database connection is initializing or unavailable. Please retry shortly.',
+        error: err.message,
+        hasMongoUri: Boolean(process.env.MONGODB_URI),
         readyState: mongoose.connection.readyState,
       });
     }
