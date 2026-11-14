@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+client/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and Secrets (CRITICAL: NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.env
+server/.env
+server/.env.*
+!server/.env.example
+client/.env
+client/.env.*
+!client/.env.example
+
+# Production builds
+client/dist/
+dist/
+build/
+
+# Database backups and dumps (contains sensitive business data)
+server/backups/
+backups/
+*.dump
+*.gz
+
+# Logs
+logs/
+*.log
+
+# Test artifacts and temporary outputs
+test_*.pdf
+test_*.html
+*.pdf
+screenshot_*.png
+*.tgz
+*.tar
+step10_*.txt
+inspect_*.js
+inspect_*.ps1
+find_coordinates.ps1
+sample_*.ps1
+test_pdf_pages.js
+
+# OS and Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

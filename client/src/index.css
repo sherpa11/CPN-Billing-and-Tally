@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --cpn-primary: #034D28;
+    --cpn-primary-hover: #02381c;
+    --cpn-primary-light: #e6f0eb;
+    --cpn-secondary: #ffffff;
+    --cpn-border: #034D28;
+  }
+
+  body {
+    font-family: 'Outfit', 'Mukta Malar', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  .font-tamil {
+    font-family: 'Mukta Malar', 'Noto Sans Tamil', 'Latha', sans-serif;
+  }
+
+  .font-mono-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Custom Utilities */
+.bg-cpn-primary {
+  background-color: #034D28;
+}
+
+.bg-cpn-dark {
+  background-color: #02361c;
+}
+
+.bg-cpn-light {
+  background-color: #edf7f1;
+}
+
+.text-cpn-primary {
+  color: #034D28;
+}
+
+.border-cpn-primary {
+  border-color: #034D28;
+}
+
+/* Fast Billing Input focus rings */
+.billing-input {
+  font-family: 'JetBrains Mono', 'Outfit', monospace;
+  transition: all 0.15s ease-in-out;
+}
+
+.billing-input:focus {
+  outline: none;
+  border-color: #034D28;
+  box-shadow: 0 0 0 2px rgba(3, 77, 40, 0.2);
+}
+
+/* Non-print state for print-root */
+#print-root {
+  display: none;
+}
+
+body.print-bill-active #print-root {
+  display: block;
+}
+
+/* ========================================================================= */
+/* DEDICATED A6 PORTRAIT (105mm × 148mm) PRINT STYLESHEET                     */
+/* Strict 1-Sheet Geometry for Canon G3030 series & Chrome                   */
+/* ========================================================================= */
+@media print {
+  @page {
+    size: 105mm 148mm;
+    margin: 0;
+  }
+
+  /* Reset body and html to exact A6 page dimensions */
+  html, body {
+    width: 105mm !important;
+    height: 148mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* When printing a bill, COMPLETELY HIDE the main application (#root) */
+  body.print-bill-active #root {
+    display: none !important;
+  }
+
+  /* When printing a bill, show ONLY the print portal root */
+  body.print-bill-active #print-root {
+    display: block !important;
+    position: static !important;
+    width: 105mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  /* Clean portal styling in print so the bill is the only rendered element */
+  body.print-bill-active {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+  }
+
+  .print-modal-portal,
+  .print-modal-container,
+  .print-modal-scroll-area,
+  .print-bill-scaler {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    max-width: none !important;
+    max-height: none !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    transform: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Hide all website navigation, dashboard, forms, buttons and modal chrome */
+  .no-print,
+  nav,
+  header,
+  aside,
+  button,
+  .btn,
+  .sidebar,
+  .toast-container,
+  #dev-banner,
+  .print-modal-backdrop,
+  .print-modal-controls {
+    display: none !important;
+  }
+
+  /* Dedicated Print Container for A6 Bill */
+  #printable-bill {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 105mm !important;
+    max-width: 105mm !important;
+    height: 148mm !important;
+    max-height: 148mm !important;
+    overflow: hidden !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Exact A6 Dimensions for CPN Bill (98mm width × 139mm height centered on 105mm × 148mm A6 paper) */
+  .cpn-a6-bill {
+    position: relative !important;
+    display: block !important;
+    width: 98mm !important;
+    max-width: 98mm !important;
+    height: 139mm !important;
+    max-height: 139mm !important;
+    margin: 2mm auto 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  /* Exact green color print fidelity */
+  .print-border-cpn {
+    border-color: #034D28 !important;
+    border-style: solid !important;
+  }
+
+  .print-text-cpn {
+    color: #034D28 !important;
+  }
+
+  .print-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1.2px solid #034D28 !important;
+    padding: 1px 3px !important;
+  }
+
+  .print-table tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
