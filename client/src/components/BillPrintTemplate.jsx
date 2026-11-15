@@ -249,20 +249,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 height: '100%',
               }}
             >
-              {/* 1. BILL NUMBER (under QR card) */}
-              <div
-                className="absolute flex items-center justify-center font-mono-num font-black text-[#034D28] text-[8px]"
-                style={{
-                  left: '74.0%',
-                  top: '20.6%',
-                  width: '23.5%',
-                  height: '2.0%',
-                }}
-              >
-                {bill.billNumberFormatted || (bill.billNumber ? `எண் : CPN-${bill.billNumber}` : '')}
-              </div>
-
-              {/* 2. CUSTOMER NAME (on திரு: underline) */}
+              {/* 1. CUSTOMER NAME (on திரு: underline) */}
               <div
                 className="absolute flex items-center font-bold text-gray-950 font-tamil text-[10px] truncate pl-0.5 pr-2"
                 style={{
