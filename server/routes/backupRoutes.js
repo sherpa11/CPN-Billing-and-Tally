@@ -3,7 +3,10 @@ const router = express.Router();
 const { exportBackup, restoreBackup } = require('../controllers/backupController');
 const { protect } = require('../middleware/authMiddleware');
 
-router.get('/export', protect, exportBackup);
-router.post('/restore', protect, restoreBackup);
+// Protect all backup routes
+router.use(protect);
+
+router.get('/export', exportBackup);
+router.post('/restore', restoreBackup);
 
 module.exports = router;

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/axios';
+import { useAuth } from './AuthContext';
 
 const defaultSettings = {
   shopName: 'CPN VEGETABLES',
@@ -19,6 +20,7 @@ const defaultSettings = {
 const SettingsContext = createContext(null);
 
 export const SettingsProvider = ({ children }) => {
+  const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
 
@@ -29,15 +31,20 @@ export const SettingsProvider = ({ children }) => {
         setSettings({ ...defaultSettings, ...res.data });
       }
     } catch (err) {
-      console.warn('[Settings] Failed to fetch settings, using defaults:', err.message);
+      console.warn('[Settings] Using default settings:', err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSettings();
-  }, []);
+    if (user) {
+      fetchSettings();
+    } else {
+      setSettings(defaultSettings);
+      setLoading(false);
+    }
+  }, [user]);
 
   const updateSettings = async (newSettings) => {
     const res = await api.put('/settings', newSettings);

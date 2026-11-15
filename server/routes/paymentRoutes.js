@@ -5,10 +5,13 @@ const {
   getPayments,
   voidPayment,
 } = require('../controllers/paymentController');
-const { optionalAuth } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
+
+// Protect all payment routes
+router.use(protect);
 
 router.get('/', getPayments);
-router.post('/', optionalAuth, createPayment);
-router.post('/:id/void', optionalAuth, voidPayment);
+router.post('/', createPayment);
+router.post('/:id/void', voidPayment);
 
 module.exports = router;

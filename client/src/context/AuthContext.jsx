@@ -8,28 +8,49 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAuth = async () => {
       const token = localStorage.getItem('cpn_token');
       if (token) {
         try {
           const res = await api.get('/auth/me');
-          if (res.success) {
+          if (isMounted && res.success && res.user) {
             setUser(res.user);
+          } else if (isMounted) {
+            localStorage.removeItem('cpn_token');
+            setUser(null);
           }
         } catch (err) {
           console.warn('[Auth] Token invalid or expired, removing token.');
           localStorage.removeItem('cpn_token');
-          setUser(null);
+          if (isMounted) setUser(null);
         }
+      } else {
+        if (isMounted) setUser(null);
       }
-      setLoading(false);
+      if (isMounted) setLoading(false);
     };
+
     checkAuth();
+
+    const handleExpired = () => {
+      if (isMounted) {
+        localStorage.removeItem('cpn_token');
+        setUser(null);
+      }
+    };
+    window.addEventListener('auth:expired', handleExpired);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('auth:expired', handleExpired);
+    };
   }, []);
 
   const login = async (username, password) => {
     const res = await api.post('/auth/login', { username, password });
-    if (res.success) {
+    if (res.success && res.token) {
       localStorage.setItem('cpn_token', res.token);
       setUser(res.user);
       return res.user;
@@ -39,7 +60,7 @@ export const AuthProvider = ({ children }) => {
 
   const setupAdmin = async (username, password, name) => {
     const res = await api.post('/auth/setup', { username, password, name });
-    if (res.success) {
+    if (res.success && res.token) {
       localStorage.setItem('cpn_token', res.token);
       setUser(res.user);
       return res.user;

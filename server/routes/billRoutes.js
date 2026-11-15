@@ -8,13 +8,16 @@ const {
   updateBill,
   cancelBill,
 } = require('../controllers/billController');
-const { optionalAuth } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
+
+// Protect all billing routes
+router.use(protect);
 
 router.get('/next-number', getNextBillNumber);
 router.get('/', getBills);
 router.get('/:id', getBillById);
-router.post('/', optionalAuth, createBill);
-router.put('/:id', optionalAuth, updateBill);
-router.post('/:id/cancel', optionalAuth, cancelBill);
+router.post('/', createBill);
+router.put('/:id', updateBill);
+router.post('/:id/cancel', cancelBill);
 
 module.exports = router;

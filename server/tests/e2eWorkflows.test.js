@@ -103,6 +103,28 @@ const runE2E = async () => {
     });
     test('Auth: Rejects counterfeit or expired tokens with 401', invalidTokenRes.status === 401);
 
+    // A5. Test Mandatory Authentication on all sensitive endpoints without token
+    const unauthCustomers = await request('/customers', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /customers with 401', unauthCustomers.status === 401);
+
+    const unauthVegetables = await request('/vegetables', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /vegetables with 401', unauthVegetables.status === 401);
+
+    const unauthBills = await request('/bills', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /bills with 401', unauthBills.status === 401);
+
+    const unauthPayments = await request('/payments', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /payments with 401', unauthPayments.status === 401);
+
+    const unauthReports = await request('/reports/dashboard-stats', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /reports with 401', unauthReports.status === 401);
+
+    const unauthSettings = await request('/settings', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /settings with 401', unauthSettings.status === 401);
+
+    const unauthBackup = await request('/backup/export', { method: 'GET', headers: { Authorization: '' } });
+    test('Auth: Rejects unauthenticated /backup/export with 401', unauthBackup.status === 401);
+
     // -------------------------------------------------------------------------
     // WORKFLOW B: VEGETABLE MASTER MANAGEMENT
     // -------------------------------------------------------------------------

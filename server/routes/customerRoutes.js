@@ -9,14 +9,17 @@ const {
   getCustomerLedger,
   reconcileCustomerBalance,
 } = require('../controllers/customerController');
-const { optionalAuth } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
+
+// Protect all customer routes
+router.use(protect);
 
 router.get('/', getCustomers);
 router.get('/:id', getCustomerById);
-router.post('/', optionalAuth, createCustomer);
-router.put('/:id', optionalAuth, updateCustomer);
-router.delete('/:id', optionalAuth, deleteCustomer);
+router.post('/', createCustomer);
+router.put('/:id', updateCustomer);
+router.delete('/:id', deleteCustomer);
 router.get('/:id/ledger', getCustomerLedger);
-router.post('/:id/reconcile', optionalAuth, reconcileCustomerBalance);
+router.post('/:id/reconcile', reconcileCustomerBalance);
 
 module.exports = router;

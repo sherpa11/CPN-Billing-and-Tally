@@ -20,10 +20,18 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor for centralized error extraction
+// Response interceptor for centralized error extraction and 401 handling
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    if (error.response?.status === 401) {
+      const url = error.config?.url || '';
+      // Avoid firing auth:expired on login requests or startup /auth/me verification
+      if (!url.includes('/auth/login') && !url.includes('/auth/me')) {
+        localStorage.removeItem('cpn_token');
+        window.dispatchEvent(new CustomEvent('auth:expired'));
+      }
+    }
     const message =
       error.response?.data?.message ||
       error.message ||

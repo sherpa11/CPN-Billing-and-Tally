@@ -67,6 +67,11 @@ export const Layout = () => {
     return () => window.removeEventListener('keydown', handleGlobalKeys);
   }, [navigate]);
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login', { replace: true });
+  };
+
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'New Bill (F2)', path: '/new-bill', icon: PlusCircle, highlight: true },
@@ -204,28 +209,21 @@ export const Layout = () => {
             </span>
           </div>
 
-          {user ? (
+          {user && (
             <div className="flex items-center justify-between pt-1">
               <div className="truncate text-xs font-semibold text-white">
                 {user.name || user.username}
               </div>
               <button
                 type="button"
-                onClick={logout}
-                className="text-xs text-emerald-300 hover:text-white flex items-center gap-1 font-bold"
+                onClick={handleLogout}
+                className="text-xs text-emerald-300 hover:text-white flex items-center gap-1 font-bold cursor-pointer"
                 title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5" />
                 <span>Exit</span>
               </button>
             </div>
-          ) : (
-            <NavLink
-              to="/login"
-              className="text-xs text-emerald-300 hover:text-white flex items-center gap-1 font-bold"
-            >
-              Admin Sign In
-            </NavLink>
           )}
         </div>
       </aside>

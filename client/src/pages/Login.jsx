@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Lock, User, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Lock, User, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
 
@@ -9,11 +9,22 @@ export const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { user, loading, login } = useAuth();
   const { settings } = useSettings();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Target route after login (default to /)
+  const destination = location.state?.from?.pathname || '/';
+
+  // If user is already authenticated, immediately navigate to destination
+  useEffect(() => {
+    if (!loading && user) {
+      navigate(destination, { replace: true });
+    }
+  }, [user, loading, navigate, destination]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,16 +34,47 @@ export const Login = () => {
     }
 
     try {
-      setLoading(true);
+      setSubmitting(true);
       setError('');
       await login(username.trim(), password);
-      navigate('/');
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid username or password');
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 p-8 flex flex-col items-center max-w-sm w-full space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-white p-1.5 shadow-md border border-gray-100 flex items-center justify-center">
+            <img
+              src="/cpn_logo.png"
+              alt="CPN Logo"
+              className="w-full h-full object-contain"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          </div>
+          <div className="text-center space-y-1">
+            <h2 className="text-lg font-black tracking-wide text-gray-900 uppercase">
+              CPN VEGETABLES
+            </h2>
+            <p className="text-xs text-[#034D28] font-bold">
+              Wholesale Billing & Accounts
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 pt-2">
+            <Loader2 className="w-4 h-4 animate-spin text-[#034D28]" />
+            <span>Verifying session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -121,10 +163,10 @@ export const Login = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={submitting}
             className="w-full py-3 bg-[#034D28] hover:bg-[#02361c] text-white font-black text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-98"
           >
-            <span>{loading ? 'Signing in...' : 'Sign In'}</span>
+            <span>{submitting ? 'Signing in...' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

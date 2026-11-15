@@ -8,13 +8,16 @@ const {
   updateVegetable,
   deleteVegetable,
 } = require('../controllers/vegetableController');
-const { optionalAuth } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/authMiddleware');
+
+// Protect all vegetable routes
+router.use(protect);
 
 router.get('/', getVegetables);
 router.get('/:id', getVegetableById);
-router.post('/', optionalAuth, createVegetable);
-router.post('/quick-add', optionalAuth, quickAddVegetable);
-router.put('/:id', optionalAuth, updateVegetable);
-router.delete('/:id', optionalAuth, deleteVegetable);
+router.post('/', createVegetable);
+router.post('/quick-add', quickAddVegetable);
+router.put('/:id', updateVegetable);
+router.delete('/:id', deleteVegetable);
 
 module.exports = router;

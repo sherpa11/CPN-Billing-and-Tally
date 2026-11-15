@@ -8,6 +8,10 @@ const {
   getMonthlySummary,
   getDashboardStats,
 } = require('../controllers/reportController');
+const { protect } = require('../middleware/authMiddleware');
+
+// Protect all report routes
+router.use(protect);
 
 router.get('/daily', getDailyReport);
 router.get('/sales-summary', getDateWiseSalesReport);

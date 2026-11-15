@@ -5,6 +5,7 @@ import { SettingsProvider } from './context/SettingsContext';
 
 // Components & Pages
 import Layout from './components/Layout';
+import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './pages/Dashboard';
 import NewBill from './pages/NewBill';
 import AllBills from './pages/AllBills';
@@ -25,18 +26,26 @@ export function App() {
         <AuthProvider>
           <SettingsProvider>
             <Routes>
+              {/* Public route */}
               <Route path="/login" element={<Login />} />
-              <Route path="/test-print" element={<TestPrintPage />} />
-              <Route path="/" element={<Layout />}>
-                <Route index element={<Dashboard />} />
-                <Route path="new-bill" element={<NewBill />} />
-                <Route path="bills" element={<AllBills />} />
-                <Route path="customers" element={<Customers />} />
-                <Route path="vegetables" element={<Vegetables />} />
-                <Route path="payments" element={<Payments />} />
-                <Route path="reports" element={<Reports />} />
-                <Route path="settings" element={<Settings />} />
+
+              {/* Protected routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/" element={<Layout />}>
+                  <Route index element={<Dashboard />} />
+                  <Route path="dashboard" element={<Navigate to="/" replace />} />
+                  <Route path="new-bill" element={<NewBill />} />
+                  <Route path="bills" element={<AllBills />} />
+                  <Route path="customers" element={<Customers />} />
+                  <Route path="vegetables" element={<Vegetables />} />
+                  <Route path="payments" element={<Payments />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="settings" element={<Settings />} />
+                  <Route path="test-print" element={<TestPrintPage />} />
+                </Route>
               </Route>
+
+              {/* Catch-all fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </SettingsProvider>
