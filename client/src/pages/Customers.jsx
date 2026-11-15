@@ -16,12 +16,14 @@ import {
   X,
 } from 'lucide-react';
 import api from '../api/axios';
+import { useDebounce } from '../hooks/useDebounce';
 import { formatCurrency } from '../utils/math';
 
 export const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [error, setError] = useState('');
 
   // Modals
@@ -47,7 +49,7 @@ export const Customers = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/customers?search=${encodeURIComponent(search)}&activeOnly=all&limit=200`);
+      const res = await api.get(`/customers?search=${encodeURIComponent(debouncedSearch)}&activeOnly=all&limit=200`);
       if (res.success) {
         setCustomers(res.data);
       }
@@ -60,7 +62,7 @@ export const Customers = () => {
 
   useEffect(() => {
     fetchCustomers();
-  }, [search]);
+  }, [debouncedSearch]);
 
   const handleOpenAdd = () => {
     setEditingCustomer(null);

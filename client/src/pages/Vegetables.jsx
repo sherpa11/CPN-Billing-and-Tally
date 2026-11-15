@@ -12,12 +12,15 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import api from '../api/axios';
+import appCache from '../services/cache';
+import { useDebounce } from '../hooks/useDebounce';
 import { formatCurrency } from '../utils/math';
 
 export const Vegetables = () => {
   const [vegetables, setVegetables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [activeFilter, setActiveFilter] = useState('all');
   const [error, setError] = useState('');
 
@@ -35,7 +38,7 @@ export const Vegetables = () => {
   const fetchVegetables = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/vegetables?search=${encodeURIComponent(search)}&activeOnly=${activeFilter}`);
+      const res = await api.get(`/vegetables?search=${encodeURIComponent(debouncedSearch)}&activeOnly=${activeFilter}`);
       if (res.success) {
         setVegetables(res.data);
       }
@@ -48,7 +51,7 @@ export const Vegetables = () => {
 
   useEffect(() => {
     fetchVegetables();
-  }, [search, activeFilter]);
+  }, [debouncedSearch, activeFilter]);
 
   const handleOpenAdd = () => {
     setEditingVeg(null);
@@ -84,6 +87,8 @@ export const Vegetables = () => {
       } else {
         await api.post('/vegetables', formData);
       }
+      appCache.invalidate('vegetables_active');
+      appCache.invalidate('vegetables_all');
       setIsModalOpen(false);
       fetchVegetables();
     } catch (err) {
@@ -94,6 +99,8 @@ export const Vegetables = () => {
   const handleToggleActive = async (veg) => {
     try {
       await api.put(`/vegetables/${veg._id}`, { isActive: !veg.isActive });
+      appCache.invalidate('vegetables_active');
+      appCache.invalidate('vegetables_all');
       fetchVegetables();
     } catch (err) {
       alert(err.message || 'Failed to update status');
@@ -104,6 +111,8 @@ export const Vegetables = () => {
     if (window.confirm(`Delete "${veg.name}" from active vegetable master?`)) {
       try {
         await api.delete(`/vegetables/${veg._id}`);
+        appCache.invalidate('vegetables_active');
+        appCache.invalidate('vegetables_all');
         fetchVegetables();
       } catch (err) {
         alert(err.message || 'Failed to delete');

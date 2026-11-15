@@ -21,11 +21,16 @@ const getDailyReport = async (req, res) => {
       Bill.find({
         billDate: { $gte: startOfDay, $lte: endOfDay },
         status: 'active',
-      }).sort({ billNumber: 1 }),
+      })
+        .select('billNumber billNumberFormatted customer customerName customerPhone billDate items totalBag totalWeight todayTotal grandTotal totalDebit totalCredit discount varavu cashReceived closingBalance')
+        .sort({ billNumber: 1 })
+        .lean(),
       Payment.find({
         paymentDate: { $gte: startOfDay, $lte: endOfDay },
         status: 'active',
-      }),
+      })
+        .select('paymentNumber customer customerName bill amount paymentDate paymentMode remarks')
+        .lean(),
     ]);
 
     let totalBags = 0;
@@ -92,7 +97,10 @@ const getDateWiseSalesReport = async (req, res) => {
     const bills = await Bill.find({
       billDate: { $gte: start, $lte: end },
       status: 'active',
-    }).sort({ billDate: 1 });
+    })
+      .select('billDate totalBag totalWeight todayTotal totalDebit totalCredit cashReceived varavu')
+      .sort({ billDate: 1 })
+      .lean();
 
     const grouped = {};
 
@@ -112,9 +120,11 @@ const getDateWiseSalesReport = async (req, res) => {
       grouped[dateKey].billCount += 1;
       grouped[dateKey].totalBags += b.totalBag || 0;
       grouped[dateKey].totalWeight = round2(grouped[dateKey].totalWeight + (b.totalWeight || 0));
-      grouped[dateKey].totalDebit = round2(grouped[dateKey].totalDebit + (b.totalDebit || 0));
+      const debit = b.todayTotal !== undefined ? b.todayTotal : (b.totalDebit || 0);
+      grouped[dateKey].totalDebit = round2(grouped[dateKey].totalDebit + debit);
       grouped[dateKey].totalCredit = round2(grouped[dateKey].totalCredit + (b.totalCredit || 0));
-      grouped[dateKey].cashReceived = round2(grouped[dateKey].cashReceived + (b.cashReceived || 0));
+      const cash = b.varavu !== undefined ? b.varavu : (b.cashReceived || 0);
+      grouped[dateKey].cashReceived = round2(grouped[dateKey].cashReceived + cash);
     });
 
     const report = Object.values(grouped).sort((a, b) => b.date.localeCompare(a.date));
@@ -135,7 +145,9 @@ const getDateWiseSalesReport = async (req, res) => {
 const getCustomerOutstandingReport = async (req, res) => {
   try {
     const customers = await Customer.find({ isDeleted: false, currentBalance: { $gt: 0 } })
-      .sort({ currentBalance: -1 });
+      .select('name tamilName phone address marketStall currentBalance openingBalance lastTransactionDate')
+      .sort({ currentBalance: -1 })
+      .lean();
 
     let totalOutstanding = 0;
     customers.forEach((c) => {
@@ -170,7 +182,7 @@ const getVegetableWiseReport = async (req, res) => {
       }
     }
 
-    const bills = await Bill.find(matchFilter);
+    const bills = await Bill.find(matchFilter).select('items billDate status').lean();
     const vegMap = {};
 
     bills.forEach((b) => {
@@ -179,6 +191,7 @@ const getVegetableWiseReport = async (req, res) => {
         if (!vegMap[key]) {
           vegMap[key] = {
             vegetable: key,
+            tamilName: item.tamilName || '',
             totalBags: 0,
             totalWeight: 0,
             totalRevenue: 0,
@@ -189,14 +202,20 @@ const getVegetableWiseReport = async (req, res) => {
         vegMap[key].rowCount += 1;
         vegMap[key].totalBags += item.bag || 0;
         vegMap[key].totalWeight = round2(vegMap[key].totalWeight + (item.weight || 0));
-        vegMap[key].totalRevenue = round2(vegMap[key].totalRevenue + (item.debit || 0));
+        const rev = item.amount !== undefined ? item.amount : (item.debit || 0);
+        vegMap[key].totalRevenue = round2(vegMap[key].totalRevenue + rev);
+        if (!vegMap[key].tamilName && item.tamilName) {
+          vegMap[key].tamilName = item.tamilName;
+        }
       });
     });
 
-    const report = Object.values(vegMap).map((v) => ({
-      ...v,
-      avgRate: v.totalWeight > 0 ? round2(v.totalRevenue / v.totalWeight) : 0,
-    })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+    const report = Object.values(vegMap)
+      .map((v) => ({
+        ...v,
+        avgRate: v.totalWeight > 0 ? round2(v.totalRevenue / v.totalWeight) : 0,
+      }))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
     res.json({
       success: true,
@@ -212,8 +231,10 @@ const getVegetableWiseReport = async (req, res) => {
 // @route GET /api/reports/monthly
 const getMonthlySummary = async (req, res) => {
   try {
-    const bills = await Bill.find({ status: 'active' });
-    const payments = await Payment.find({ status: 'active', bill: null });
+    const [bills, payments] = await Promise.all([
+      Bill.find({ status: 'active' }).select('billDate todayTotal totalDebit totalCredit cashReceived varavu').lean(),
+      Payment.find({ status: 'active', bill: null }).select('paymentDate amount').lean(),
+    ]);
 
     const months = {};
 
@@ -232,9 +253,11 @@ const getMonthlySummary = async (req, res) => {
         };
       }
       months[key].billCount += 1;
-      months[key].totalDebit = round2(months[key].totalDebit + b.totalDebit);
-      months[key].totalCredit = round2(months[key].totalCredit + b.totalCredit);
-      months[key].billCash = round2(months[key].billCash + (b.cashReceived || 0));
+      const debit = b.todayTotal !== undefined ? b.todayTotal : (b.totalDebit || 0);
+      months[key].totalDebit = round2(months[key].totalDebit + debit);
+      months[key].totalCredit = round2(months[key].totalCredit + (b.totalCredit || 0));
+      const cash = b.varavu !== undefined ? b.varavu : (b.cashReceived || 0);
+      months[key].billCash = round2(months[key].billCash + cash);
     });
 
     payments.forEach((p) => {
@@ -251,14 +274,15 @@ const getMonthlySummary = async (req, res) => {
           totalCollection: 0,
         };
       }
-      months[key].directCash = round2(months[key].directCash + p.amount);
+      months[key].directCash = round2(months[key].directCash + (p.amount || 0));
     });
 
-    Object.values(months).forEach((m) => {
-      m.totalCollection = round2(m.billCash + m.directCash);
-    });
-
-    const report = Object.values(months).sort((a, b) => b.month.localeCompare(a.month));
+    const report = Object.values(months)
+      .map((m) => ({
+        ...m,
+        totalCollection: round2(m.billCash + m.directCash),
+      }))
+      .sort((a, b) => b.month.localeCompare(a.month));
 
     res.json({
       success: true,

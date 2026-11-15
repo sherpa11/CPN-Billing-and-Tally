@@ -39,7 +39,10 @@ const runInitialSeedOnce = async () => {
 // Connect to MongoDB Atlas / Local Database and run idempotent initialization
 connectDB()
   .then(() => {
-    runInitialSeedOnce();
+    // Only run seed checks in local non-production environments to avoid cold-start overhead in serverless
+    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+      runInitialSeedOnce();
+    }
   })
   .catch((err) => {
     console.error('[CPN Server] Initial database connection error:', err.message);

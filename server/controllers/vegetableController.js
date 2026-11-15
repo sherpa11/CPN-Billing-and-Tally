@@ -23,10 +23,12 @@ const getVegetables = async (req, res) => {
     }
 
     const maxLimit = limit ? parseInt(limit, 10) : 500;
-    // Sort by usageCount descending, then name ascending
+    // High performance query: use .lean() with composite index matching sort order
     const vegetables = await Vegetable.find(query)
+      .select('name normalizedName tamilName defaultRate unit isActive sortOrder usageCount')
       .sort({ usageCount: -1, sortOrder: 1, name: 1 })
-      .limit(maxLimit);
+      .limit(maxLimit)
+      .lean();
 
     res.json({
       success: true,
@@ -43,7 +45,7 @@ const getVegetables = async (req, res) => {
 // @route GET /api/vegetables/:id
 const getVegetableById = async (req, res) => {
   try {
-    const vegetable = await Vegetable.findById(req.params.id);
+    const vegetable = await Vegetable.findById(req.params.id).lean();
     if (!vegetable || vegetable.isDeleted) {
       return res.status(404).json({ success: false, message: 'Vegetable not found' });
     }

@@ -27,16 +27,19 @@ const getCustomers = async (req, res) => {
       ];
     }
 
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10) || 50));
     const skip = (pageNum - 1) * limitNum;
 
+    // High performance query: lean and targeted field projection
     const [total, customers] = await Promise.all([
       Customer.countDocuments(query),
       Customer.find(query)
+        .select('name tamilName phone address marketStall currentBalance openingBalance isActive lastTransactionDate createdAt')
         .sort({ name: 1 })
         .skip(skip)
-        .limit(limitNum),
+        .limit(limitNum)
+        .lean(),
     ]);
 
     res.json({
@@ -57,18 +60,22 @@ const getCustomers = async (req, res) => {
 // @route GET /api/customers/:id
 const getCustomerById = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findById(req.params.id).lean();
     if (!customer || customer.isDeleted) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
     const [recentBills, recentPayments] = await Promise.all([
       Bill.find({ customer: customer._id, status: 'active' })
+        .select('billNumber billNumberFormatted billDate todayTotal grandTotal closingBalance')
         .sort({ billDate: -1, billNumber: -1 })
-        .limit(10),
+        .limit(10)
+        .lean(),
       Payment.find({ customer: customer._id, status: 'active' })
+        .select('paymentNumber amount paymentDate paymentMode resultingBalance')
         .sort({ paymentDate: -1 })
-        .limit(10),
+        .limit(10)
+        .lean(),
     ]);
 
     let lastBalanceDate = null;
@@ -85,7 +92,7 @@ const getCustomerById = async (req, res) => {
     res.json({
       success: true,
       data: {
-        ...customer.toObject(),
+        ...customer,
         lastBalanceDate,
       },
       lastBalanceDate,
@@ -121,13 +128,13 @@ const createCustomer = async (req, res) => {
       isActive: true,
     });
 
-    await AuditLog.create({
+    AuditLog.create({
       action: 'create',
       entityType: 'customer',
       entityId: customer._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
       newState: customer.toObject(),
-    });
+    }).catch((err) => console.warn('[Customer] Audit log notice:', err.message));
 
     res.status(201).json({
       success: true,
@@ -140,44 +147,60 @@ const createCustomer = async (req, res) => {
   }
 };
 
-// @desc Update customer
+// @desc Update existing customer
 // @route PUT /api/customers/:id
 const updateCustomer = async (req, res) => {
   try {
-    const { name, tamilName, phone, address, marketStall, notes, isActive, openingBalance } = req.body;
     const customer = await Customer.findById(req.params.id);
-
     if (!customer || customer.isDeleted) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
+    const {
+      name,
+      tamilName,
+      phone,
+      address,
+      marketStall,
+      openingBalance,
+      currentBalance,
+      notes,
+      isActive,
+    } = req.body;
+
     const previousState = customer.toObject();
 
-    if (name) customer.name = name.trim();
+    if (name !== undefined) customer.name = name.trim();
     if (tamilName !== undefined) customer.tamilName = tamilName.trim();
     if (phone !== undefined) customer.phone = phone.trim();
     if (address !== undefined) customer.address = address.trim();
     if (marketStall !== undefined) customer.marketStall = marketStall.trim();
     if (notes !== undefined) customer.notes = notes;
-    if (isActive !== undefined) customer.isActive = Boolean(isActive);
+    if (isActive !== undefined) customer.isActive = isActive;
 
-    // If opening balance changed, recalculate current balance safely
-    if (openingBalance !== undefined && round2(openingBalance) !== customer.openingBalance) {
-      const diff = sub2(round2(openingBalance), customer.openingBalance);
-      customer.openingBalance = round2(openingBalance);
-      customer.currentBalance = add2(customer.currentBalance, diff);
+    if (openingBalance !== undefined) {
+      const newOpening = round2(openingBalance);
+      const balanceDelta = sub2(newOpening, customer.openingBalance || 0);
+      customer.openingBalance = newOpening;
+      if (currentBalance === undefined) {
+        customer.currentBalance = add2(customer.currentBalance || 0, balanceDelta);
+      }
+    }
+
+    if (currentBalance !== undefined) {
+      customer.currentBalance = round2(currentBalance);
     }
 
     await customer.save();
 
-    await AuditLog.create({
+    AuditLog.create({
       action: 'update',
       entityType: 'customer',
       entityId: customer._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
       previousState,
       newState: customer.toObject(),
-    });
+    }).catch((err) => console.warn('[Customer] Audit log notice:', err.message));
 
     res.json({
       success: true,
@@ -189,34 +212,30 @@ const updateCustomer = async (req, res) => {
   }
 };
 
-// @desc Delete customer (soft or permanent)
+// @desc Soft-delete customer
 // @route DELETE /api/customers/:id
 const deleteCustomer = async (req, res) => {
   try {
-    const { permanent } = req.query;
     const customer = await Customer.findById(req.params.id);
-    if (!customer) {
+    if (!customer || customer.isDeleted) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
-    if (permanent === 'true') {
-      await Customer.findByIdAndDelete(req.params.id);
-    } else {
-      customer.isDeleted = true;
-      customer.isActive = false;
-      await customer.save();
-    }
+    customer.isDeleted = true;
+    customer.isActive = false;
+    await customer.save();
 
-    await AuditLog.create({
-      action: permanent === 'true' ? 'delete_permanent' : 'delete_soft',
+    AuditLog.create({
+      action: 'delete',
       entityType: 'customer',
-      entityId: req.params.id,
+      entityId: customer._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
-    });
+      newState: customer.toObject(),
+    }).catch((err) => console.warn('[Customer] Audit log notice:', err.message));
 
     res.json({
       success: true,
-      message: 'Customer deleted successfully',
+      message: 'Customer soft-deleted successfully',
       data: customer,
     });
   } catch (error) {
@@ -228,7 +247,7 @@ const deleteCustomer = async (req, res) => {
 // @route GET /api/customers/:id/ledger
 const getCustomerLedger = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const customer = await Customer.findById(req.params.id).lean();
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
@@ -251,9 +270,8 @@ const getCustomerLedger = async (req, res) => {
     }
 
     const [bills, payments] = await Promise.all([
-      Bill.find(billDateFilter).sort({ billDate: 1, billNumber: 1 }),
-      // Exclude payments linked to a bill so we don't double count cash received on bill
-      Payment.find({ ...payDateFilter, bill: null }).sort({ paymentDate: 1 }),
+      Bill.find(billDateFilter).sort({ billDate: 1, billNumber: 1 }).lean(),
+      Payment.find({ ...payDateFilter, bill: null }).sort({ paymentDate: 1 }).lean(),
     ]);
 
     // Build timeline entries
@@ -277,7 +295,7 @@ const getCustomerLedger = async (req, res) => {
         type: 'BILL',
         id: b._id,
         reference: b.billNumberFormatted ? `Bill #${b.billNumberFormatted}` : `Bill #${b.billNumber}`,
-        description: `Vegetable Purchase (${b.items.length} items, ${b.totalBag} bags, ${b.totalWeight} kg)`,
+        description: `Vegetable Purchase (${b.items ? b.items.length : 0} items, ${b.totalBag || 0} bags, ${b.totalWeight || 0} kg)`,
         debit: billDebit,
         credit: 0,
         discount: b.discount || 0,
@@ -285,7 +303,6 @@ const getCustomerLedger = async (req, res) => {
         closingBalance: b.closingBalance,
       });
 
-      // If bill had discount, record separate discount entry
       if (b.discount > 0) {
         timeline.push({
           date: b.billDate,
@@ -298,7 +315,6 @@ const getCustomerLedger = async (req, res) => {
         });
       }
 
-      // If bill had varavu / cash received, add it as varavu/payment entry
       const billVaravu = b.varavu !== undefined ? b.varavu : (b.cashReceived || 0);
       if (billVaravu > 0) {
         timeline.push({
@@ -319,22 +335,29 @@ const getCustomerLedger = async (req, res) => {
         date: p.paymentDate,
         type: 'PAYMENT',
         id: p._id,
-        reference: `Payment #${p.paymentNumber || p._id.toString().slice(-4)}`,
-        description: `Direct Payment (${p.paymentMode})${p.referenceNumber ? ' Ref: ' + p.referenceNumber : ''}${p.remarks ? ' - ' + p.remarks : ''}`,
+        reference: `Payment #${p.paymentNumber || ''}`,
+        description: `Direct Payment Received (${p.paymentMode || 'Cash'}) ${p.remarks ? '- ' + p.remarks : ''}`,
         debit: 0,
         credit: p.amount,
+        resultingBalance: p.resultingBalance,
       });
     });
 
-    // Sort chronologically
+    // Sort all timeline entries chronologically
     timeline.sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    // Calculate running balance: balance = prev + debit - credit
+    // Calculate running balance strictly with 2-decimal arithmetic
     let runningBalance = 0;
-    const ledgerWithRunning = timeline.map((entry) => {
-      runningBalance = round2(runningBalance + (entry.debit || 0) - (entry.credit || 0));
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    const computedTimeline = timeline.map((item) => {
+      totalDebit = round2(totalDebit + (item.debit || 0));
+      totalCredit = round2(totalCredit + (item.credit || 0));
+      runningBalance = round2(runningBalance + (item.debit || 0) - (item.credit || 0));
+
       return {
-        ...entry,
+        ...item,
         runningBalance,
       };
     });
@@ -342,15 +365,22 @@ const getCustomerLedger = async (req, res) => {
     res.json({
       success: true,
       customer: {
+        _id: customer._id,
         id: customer._id,
         name: customer.name,
         tamilName: customer.tamilName,
         phone: customer.phone,
-        openingBalance: customer.openingBalance || 0,
+        openingBalance: customer.openingBalance,
         currentBalance: customer.currentBalance,
         calculatedBalance: runningBalance,
       },
-      ledger: ledgerWithRunning,
+      summary: {
+        totalDebit,
+        totalCredit,
+        netBalance: runningBalance,
+        currentBalance: customer.currentBalance,
+      },
+      ledger: computedTimeline,
     });
   } catch (error) {
     console.error('[Customer] getCustomerLedger error:', error);
@@ -358,44 +388,52 @@ const getCustomerLedger = async (req, res) => {
   }
 };
 
-// @desc Reconcile and fix customer balance against all transactions
+// @desc Reconcile / audit customer balance against bills and payments
 // @route POST /api/customers/:id/reconcile
 const reconcileCustomerBalance = async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id);
-    if (!customer) return res.status(404).json({ success: false, message: 'Customer not found' });
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
 
     const [bills, payments] = await Promise.all([
-      Bill.find({ customer: customer._id, status: 'active' }),
-      Payment.find({ customer: customer._id, status: 'active', bill: null }),
+      Bill.find({ customer: customer._id, status: 'active' }).sort({ billDate: 1, billNumber: 1 }).lean(),
+      Payment.find({ customer: customer._id, status: 'active', bill: null }).sort({ paymentDate: 1 }).lean(),
     ]);
 
-    let calcBal = customer.openingBalance;
+    let calculatedBalance = customer.openingBalance || 0;
+
     bills.forEach((b) => {
-      calcBal = round2(calcBal + b.totalDebit - b.totalCredit - (b.cashReceived || 0));
-    });
-    payments.forEach((p) => {
-      calcBal = round2(calcBal - p.amount);
+      const debit = b.todayTotal !== undefined ? b.todayTotal : (b.totalDebit || 0);
+      const discount = b.discount || 0;
+      const varavu = b.varavu !== undefined ? b.varavu : (b.cashReceived || 0);
+      calculatedBalance = round2(calculatedBalance + debit - discount - varavu);
     });
 
-    const oldBalance = customer.currentBalance;
-    customer.currentBalance = calcBal;
+    payments.forEach((p) => {
+      calculatedBalance = round2(calculatedBalance - p.amount);
+    });
+
+    const previousBalance = customer.currentBalance;
+    customer.currentBalance = calculatedBalance;
     await customer.save();
 
-    await AuditLog.create({
+    AuditLog.create({
       action: 'reconcile_balance',
       entityType: 'customer',
       entityId: customer._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
-      previousState: { currentBalance: oldBalance },
-      newState: { currentBalance: calcBal },
-    });
+      previousState: { currentBalance: previousBalance },
+      newState: { currentBalance: calculatedBalance },
+    }).catch((err) => console.warn('[Customer] Audit log notice:', err.message));
 
     res.json({
       success: true,
-      message: 'Customer balance reconciled accurately',
-      oldBalance,
-      reconciledBalance: calcBal,
+      message: 'Customer balance reconciled successfully',
+      previousBalance,
+      reconciledBalance: calculatedBalance,
+      difference: round2(calculatedBalance - previousBalance),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

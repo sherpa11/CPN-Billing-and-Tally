@@ -62,5 +62,7 @@ vegetableSchema.pre('validate', function () {
 });
 
 vegetableSchema.index({ name: 'text', tamilName: 'text' });
+vegetableSchema.index({ isDeleted: 1, isActive: 1, usageCount: -1, sortOrder: 1, name: 1 });
+vegetableSchema.index({ normalizedName: 1, isDeleted: 1 });
 
 module.exports = mongoose.model('Vegetable', vegetableSchema);

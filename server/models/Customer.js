@@ -61,7 +61,9 @@ const customerSchema = new mongoose.Schema(
   }
 );
 
-// Search index
+// Search index & compound indexes for fast sorting and balance aggregation
 customerSchema.index({ name: 'text', tamilName: 'text', phone: 'text' });
+customerSchema.index({ isDeleted: 1, isActive: 1, name: 1 });
+customerSchema.index({ isDeleted: 1, currentBalance: 1 });
 
 module.exports = mongoose.model('Customer', customerSchema);

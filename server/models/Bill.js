@@ -173,5 +173,8 @@ const billSchema = new mongoose.Schema(
 
 billSchema.index({ billDate: -1, billNumber: -1 });
 billSchema.index({ customer: 1, billDate: -1 });
+billSchema.index({ status: 1, billDate: -1, billNumber: -1 });
+billSchema.index({ customer: 1, status: 1, billDate: -1, billNumber: -1 });
+billSchema.index({ billNumber: -1 });
 
 module.exports = mongoose.model('Bill', billSchema);

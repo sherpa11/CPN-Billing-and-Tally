@@ -121,7 +121,8 @@ const getPayments = async (req, res) => {
         .populate('customer', 'name phone address currentBalance')
         .sort({ paymentDate: -1, createdAt: -1 })
         .skip(skip)
-        .limit(limitNum),
+        .limit(limitNum)
+        .lean(),
     ]);
 
     res.json({

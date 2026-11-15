@@ -10,10 +10,14 @@ const { round2, add2, sub2 } = require('../utils/mathUtils');
 // @route GET /api/bills/next-number
 const getNextBillNumber = async (req, res) => {
   try {
-    const settings = await Settings.findOne() || { billPrefix: 'CPN' };
-    const latestBill = await Bill.findOne().sort({ billNumber: -1 });
+    const [settings, latestBill] = await Promise.all([
+      Settings.findOne().select('billPrefix').lean(),
+      Bill.findOne().sort({ billNumber: -1 }).select('billNumber').lean(),
+    ]);
+
     const nextNum = latestBill && latestBill.billNumber ? latestBill.billNumber + 1 : 1;
-    const formatted = `${settings.billPrefix || 'CPN'}-${String(nextNum).padStart(4, '0')}`;
+    const prefix = (settings && settings.billPrefix) || 'CPN';
+    const formatted = `${prefix}-${String(nextNum).padStart(4, '0')}`;
 
     res.json({
       success: true,
@@ -36,7 +40,7 @@ const getBills = async (req, res) => {
       search,
       status = 'active',
       page = 1,
-      limit = 20,
+      limit = 25,
     } = req.query;
 
     let query = {};
@@ -77,14 +81,18 @@ const getBills = async (req, res) => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
     const skip = (pageNum - 1) * limitNum;
 
+    // High performance query: use .lean() and avoid heavy nested subdocument populates in list view
     const [total, bills] = await Promise.all([
       Bill.countDocuments(query),
       Bill.find(query)
-        .populate('customer', 'name tamilName phone address marketStall currentBalance')
-        .populate('items.vegetable', 'name tamilName defaultRate unit')
+        .select(
+          'billNumber billNumberFormatted customer customerName customerPhone billDate totalBag totalWeight todayTotal grandTotal totalDebit discount varavu cashReceived closingBalance status notes createdAt'
+        )
+        .populate('customer', 'name tamilName phone currentBalance')
         .sort({ billDate: -1, billNumber: -1 })
         .skip(skip)
-        .limit(limitNum),
+        .limit(limitNum)
+        .lean(),
     ]);
 
     res.json({
@@ -107,13 +115,14 @@ const getBillById = async (req, res) => {
   try {
     const bill = await Bill.findById(req.params.id)
       .populate('customer', 'name tamilName phone address marketStall currentBalance')
-      .populate('items.vegetable', 'name tamilName defaultRate unit');
+      .populate('items.vegetable', 'name tamilName defaultRate unit')
+      .lean();
 
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found' });
     }
 
-    const billObj = bill.toObject();
+    const billObj = { ...bill };
     if (billObj.todayTotal === undefined || billObj.todayTotal === null) {
       billObj.todayTotal = billObj.totalDebit || 0;
     }
@@ -131,7 +140,7 @@ const getBillById = async (req, res) => {
     }
 
     // Resolve Tamil vegetable names from master for both current and historical bills
-    const allVegetables = await Vegetable.find({}).lean();
+    const allVegetables = await Vegetable.find({}).select('_id name normalizedName tamilName').lean();
     const vegById = new Map();
     const vegByName = new Map();
     for (const v of allVegetables) {
@@ -165,7 +174,7 @@ const getBillById = async (req, res) => {
   }
 };
 
-// @desc Create a new Bill
+// @desc Create a new Bill (Optimized Save & New Workflow)
 // @route POST /api/bills
 const createBill = async (req, res) => {
   try {
@@ -194,11 +203,25 @@ const createBill = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Bill must contain at least one vegetable item' });
     }
 
-    // Find or create customer
-    let customer;
-    if (resolvedCustomerId) {
-      customer = await Customer.findById(resolvedCustomerId);
-    }
+    const inputVegIds = items.filter((it) => it.vegetable).map((it) => it.vegetable);
+
+    // Parallelize independent initial lookups into a single round trip
+    const [latestBill, settings, resolvedCustomer, vegDocs, lastCustBill] = await Promise.all([
+      Bill.findOne().sort({ billNumber: -1 }).select('billNumber').lean(),
+      Settings.findOne().select('billPrefix').lean(),
+      resolvedCustomerId ? Customer.findById(resolvedCustomerId) : null,
+      inputVegIds.length > 0
+        ? Vegetable.find({ _id: { $in: inputVegIds } }).select('_id name tamilName defaultRate unit').lean()
+        : [],
+      resolvedCustomerId && !previousBalanceDate
+        ? Bill.findOne({ customer: resolvedCustomerId, status: 'active' })
+            .sort({ billDate: -1, billNumber: -1 })
+            .select('billDate')
+            .lean()
+        : null,
+    ]);
+
+    let customer = resolvedCustomer;
     if (!customer && customerName) {
       customer = await Customer.create({
         name: customerName.trim(),
@@ -212,20 +235,15 @@ const createBill = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Customer could not be resolved' });
     }
 
-    // Calculate sequential bill number atomically
-    const latestBill = await Bill.findOne().sort({ billNumber: -1 });
     const billNumber = latestBill && latestBill.billNumber ? latestBill.billNumber + 1 : 1;
-    const settings = await Settings.findOne() || { billPrefix: 'CPN' };
-    const billNumberFormatted = `${settings.billPrefix || 'CPN'}-${String(billNumber).padStart(4, '0')}`;
+    const billPrefix = (settings && settings.billPrefix) || 'CPN';
+    const billNumberFormatted = `${billPrefix}-${String(billNumber).padStart(4, '0')}`;
 
-    // Process and validate items for 5-column bill
+    // Process and validate items
     let totalBag = 0;
     let totalWeight = 0;
     let todayTotal = 0;
 
-    // Fetch vegetable docs to resolve Tamil names accurately
-    const inputVegIds = items.filter((it) => it.vegetable).map((it) => it.vegetable);
-    const vegDocs = await Vegetable.find({ _id: { $in: inputVegIds } }).lean();
     const vegMap = new Map();
     vegDocs.forEach((v) => vegMap.set(v._id.toString(), v));
 
@@ -233,7 +251,6 @@ const createBill = async (req, res) => {
       const rate = round2(item.rate || 0);
       const bag = Number(item.bag) || 0;
       const weight = round2(item.weight || 0);
-      // In 5-column design: amount = rate * weight (or explicit amount if provided)
       let amount = round2(
         item.amount !== undefined && item.amount !== null
           ? item.amount
@@ -241,7 +258,6 @@ const createBill = async (req, res) => {
           ? item.debit
           : (rate * weight)
       );
-      // Backward compatibility fields
       const debit = amount;
       const credit = 0;
 
@@ -281,7 +297,6 @@ const createBill = async (req, res) => {
     // Resolve date of previous balance
     let resolvedPrevBalanceDate = previousBalanceDate ? new Date(previousBalanceDate) : null;
     if (!resolvedPrevBalanceDate) {
-      const lastCustBill = await Bill.findOne({ customer: customer._id, status: 'active' }).sort({ billDate: -1, billNumber: -1 });
       if (lastCustBill && lastCustBill.billDate) {
         resolvedPrevBalanceDate = lastCustBill.billDate;
       } else if (customer.lastTransactionDate) {
@@ -291,13 +306,13 @@ const createBill = async (req, res) => {
       }
     }
 
-    // EXACT NEW 6-ROW SUMMARY ACCOUNTING LOGIC (Matching Authoritative Reference):
-    // 1. இன்றைய மொத்தம் (Today's Total) = Sum of all vegetable row amounts
-    // 2. முன் பாக்கி (Previous Balance) = Customer's carried-forward balance (with date)
-    // 3. மொத்தம் (Total) = Today's Total + Previous Balance
-    // 4. தள்ளுபடி (Discount) = User-entered discount amount
-    // 5. வரவு (Varavu) = Cash/payment received from customer today
-    // 6. மொத்த பாக்கி (Final Outstanding Balance) = Total - Discount - Varavu
+    // 6-ROW SUMMARY ACCOUNTING LOGIC:
+    // 1. Today's Total = todayTotal
+    // 2. Previous Balance = parsedPrevBalance
+    // 3. Total = todayTotal + parsedPrevBalance
+    // 4. Discount = parsedDiscount
+    // 5. Varavu = parsedVaravu
+    // 6. Closing Balance = Total - Discount - Varavu
     const total = round2(todayTotal + parsedPrevBalance);
     const closingBalance = round2(total - parsedDiscount - parsedVaravu);
 
@@ -313,14 +328,14 @@ const createBill = async (req, res) => {
       totalBag,
       totalWeight,
       todayTotal,
-      grandTotal: total, // represents மொத்தம் = todayTotal + previousBalance
-      totalDebit: todayTotal, // Backward compatibility
+      grandTotal: total,
+      totalDebit: todayTotal,
       totalCredit: 0,
       previousBalance: parsedPrevBalance,
       previousBalanceDate: resolvedPrevBalanceDate,
       discount: parsedDiscount,
       varavu: parsedVaravu,
-      cashReceived: parsedVaravu, // synced for backward compatibility
+      cashReceived: parsedVaravu,
       closingBalance,
       billVersion: 'v3_new_6row',
       notes: notes || '',
@@ -328,53 +343,70 @@ const createBill = async (req, res) => {
       createdBy: req.user ? req.user._id : null,
     });
 
-    // Update customer current balance
+    // Update customer balance & record payment concurrently
     customer.currentBalance = closingBalance;
     customer.lastTransactionDate = bill.billDate;
-    await customer.save();
 
-    // If varavu > 0, record exactly ONE linked Payment document
+    const postTasks = [customer.save()];
+
     if (parsedVaravu > 0) {
-      await Payment.create({
-        customer: customer._id,
-        customerName: customer.name,
-        bill: bill._id,
-        amount: parsedVaravu,
-        paymentDate: bill.billDate,
-        paymentMode: 'Cash',
-        remarks: `Varavu / Cash received for Bill #${billNumberFormatted}`,
-        previousBalance: round2(total - parsedDiscount),
-        resultingBalance: closingBalance,
-        status: 'active',
-        createdBy: req.user ? req.user._id : null,
-      });
+      postTasks.push(
+        Payment.create({
+          customer: customer._id,
+          customerName: customer.name,
+          bill: bill._id,
+          amount: parsedVaravu,
+          paymentDate: bill.billDate,
+          paymentMode: 'Cash',
+          remarks: `Varavu / Cash received for Bill #${billNumberFormatted}`,
+          previousBalance: round2(total - parsedDiscount),
+          resultingBalance: closingBalance,
+          status: 'active',
+          createdBy: req.user ? req.user._id : null,
+        })
+      );
     }
 
-    // Increment usageCount for vegetables
+    await Promise.all(postTasks);
+
+    // Asynchronous non-blocking background tasks
     const vegIds = processedItems
       .map((it) => it.vegetable)
       .filter((v) => v !== null);
     if (vegIds.length > 0) {
-      await Vegetable.updateMany({ _id: { $in: vegIds } }, { $inc: { usageCount: 1 } });
+      Vegetable.updateMany({ _id: { $in: vegIds } }, { $inc: { usageCount: 1 } }).catch((err) =>
+        console.warn('[Bill] Vegetable usageCount update notice:', err.message)
+      );
     }
 
-    // Audit log
-    await AuditLog.create({
+    AuditLog.create({
       action: 'create_bill',
       entityType: 'bill',
       entityId: bill._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
       newState: bill.toObject(),
-    });
+    }).catch((err) => console.warn('[Bill] Audit log notice:', err.message));
 
-    const populatedBill = await Bill.findById(bill._id)
-      .populate('customer', 'name tamilName phone address marketStall currentBalance')
-      .populate('items.vegetable', 'name tamilName defaultRate unit');
+    // Construct response directly from in-memory records without extra database queries
+    const responseBill = bill.toObject();
+    responseBill.customer = {
+      _id: customer._id,
+      name: customer.name,
+      tamilName: customer.tamilName,
+      phone: customer.phone,
+      address: customer.address,
+      marketStall: customer.marketStall,
+      currentBalance: customer.currentBalance,
+    };
+    responseBill.items = responseBill.items.map((it) => ({
+      ...it,
+      vegetable: it.vegetable && vegMap.has(it.vegetable.toString()) ? vegMap.get(it.vegetable.toString()) : it.vegetable,
+    }));
 
     res.status(201).json({
       success: true,
       message: 'Bill created and saved permanently',
-      data: populatedBill || bill,
+      data: responseBill,
     });
   } catch (error) {
     console.error('[Bill] createBill error:', error);
@@ -408,87 +440,95 @@ const updateBill = async (req, res) => {
       discount = 0,
       varavu,
       cashReceived = 0,
-      notes,
+      notes = '',
     } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ success: false, message: 'Bill must contain at least one item' });
+      return res.status(400).json({ success: false, message: 'Bill must contain at least one vegetable item' });
     }
 
-    // 1. Calculate old bill effect on customer balance: todayTotal - discount - varavu
-    const oldTodayTotal = bill.todayTotal !== undefined ? bill.todayTotal : bill.totalDebit;
-    const oldDiscount = bill.discount || 0;
-    const oldVaravu = bill.varavu !== undefined ? bill.varavu : (bill.cashReceived || 0);
-    const oldEffect = round2(oldTodayTotal - oldDiscount - oldVaravu);
+    const inputVegIds = items.filter((it) => it.vegetable).map((it) => it.vegetable);
+    const vegDocs = await Vegetable.find({ _id: { $in: inputVegIds } }).select('_id name tamilName').lean();
+    const vegMap = new Map();
+    vegDocs.forEach((v) => vegMap.set(v._id.toString(), v));
 
-    // 2. Process new items
     let totalBag = 0;
     let totalWeight = 0;
-    let totalDebit = 0;
-    let totalCredit = 0;
+    let todayTotal = 0;
 
     const processedItems = items.map((item) => {
       const rate = round2(item.rate || 0);
       const bag = Number(item.bag) || 0;
       const weight = round2(item.weight || 0);
-      let debit = round2(item.debit !== undefined && item.debit !== null ? item.debit : (rate * weight));
-      const credit = round2(item.credit || 0);
+      const amount = round2(
+        item.amount !== undefined && item.amount !== null
+          ? item.amount
+          : item.debit !== undefined && item.debit !== null
+          ? item.debit
+          : (rate * weight)
+      );
 
       totalBag += bag;
       totalWeight = add2(totalWeight, weight);
-      totalDebit = add2(totalDebit, debit);
-      totalCredit = add2(totalCredit, credit);
+      todayTotal = add2(todayTotal, amount);
+
+      const matchedVeg = item.vegetable ? vegMap.get(item.vegetable.toString()) : null;
+      const resolvedTamilName = (item.tamilName && item.tamilName.trim())
+        ? item.tamilName.trim()
+        : (matchedVeg && matchedVeg.tamilName ? matchedVeg.tamilName.trim() : '');
 
       return {
         vegetable: item.vegetable || null,
         particulars: item.particulars ? item.particulars.trim() : 'Vegetable',
-        tamilName: item.tamilName ? item.tamilName.trim() : '',
+        tamilName: resolvedTamilName,
         rate,
         bag,
         weight,
-        amount: debit,
-        debit,
-        credit,
+        amount,
+        debit: amount,
+        credit: 0,
       };
     });
 
-    const parsedDiscount = Math.max(0, round2(discount !== undefined ? discount : oldDiscount));
+    const parsedDiscount = Math.max(0, round2(discount || 0));
     const parsedVaravu = Math.max(
       0,
-      round2(varavu !== undefined && varavu !== null && varavu !== '' ? varavu : (cashReceived || oldVaravu))
+      round2(varavu !== undefined && varavu !== null && varavu !== '' ? varavu : (cashReceived || 0))
     );
-    const newEffect = round2(totalDebit - parsedDiscount - parsedVaravu);
 
-    // 3. Update customer's current balance: revert oldEffect, apply newEffect
-    const balanceDifference = round2(newEffect - oldEffect);
-    customer.currentBalance = round2(customer.currentBalance + balanceDifference);
-    await customer.save();
+    // Preserve the original previous balance recorded on the bill
+    const parsedPrevBalance = round2(bill.previousBalance || 0);
+    const total = round2(todayTotal + parsedPrevBalance);
+    const closingBalance = round2(total - parsedDiscount - parsedVaravu);
 
-    // 4. Update Bill fields
+    // Calculate balance difference to adjust customer current balance safely
+    const oldClosingBalance = round2(bill.closingBalance || 0);
+    const balanceDiff = round2(closingBalance - oldClosingBalance);
+
+    bill.billDate = billDate ? new Date(billDate) : bill.billDate;
     bill.items = processedItems;
     bill.totalBag = totalBag;
     bill.totalWeight = totalWeight;
-    bill.totalDebit = totalDebit;
-    bill.totalCredit = totalCredit;
-    bill.todayTotal = totalDebit;
-    bill.grandTotal = round2(totalDebit + bill.previousBalance);
+    bill.todayTotal = todayTotal;
+    bill.grandTotal = total;
+    bill.totalDebit = todayTotal;
     bill.discount = parsedDiscount;
     bill.varavu = parsedVaravu;
     bill.cashReceived = parsedVaravu;
-    bill.closingBalance = round2(bill.grandTotal - parsedDiscount - parsedVaravu);
-    if (billDate) bill.billDate = new Date(billDate);
-    if (notes !== undefined) bill.notes = notes;
+    bill.closingBalance = closingBalance;
+    bill.notes = notes !== undefined ? notes : bill.notes;
     bill.version = (bill.version || 1) + 1;
 
-    await bill.save();
+    customer.currentBalance = round2((customer.currentBalance || 0) + balanceDiff);
+    await Promise.all([bill.save(), customer.save()]);
 
-    // 5. Update or sync linked Payment
-    let linkedPayment = await Payment.findOne({ bill: bill._id });
+    // Update or create linked payment
+    const linkedPayment = await Payment.findOne({ bill: bill._id });
     if (parsedVaravu > 0) {
       if (linkedPayment) {
         linkedPayment.amount = parsedVaravu;
-        linkedPayment.paymentDate = bill.billDate;
-        linkedPayment.status = 'active';
+        linkedPayment.previousBalance = round2(total - parsedDiscount);
+        linkedPayment.resultingBalance = closingBalance;
         await linkedPayment.save();
       } else {
         await Payment.create({
@@ -498,29 +538,31 @@ const updateBill = async (req, res) => {
           amount: parsedVaravu,
           paymentDate: bill.billDate,
           paymentMode: 'Cash',
-          remarks: `Varavu / Cash received for Bill #${bill.billNumberFormatted || bill.billNumber}`,
+          remarks: `Varavu / Cash received for Bill #${bill.billNumberFormatted}`,
+          previousBalance: round2(total - parsedDiscount),
+          resultingBalance: closingBalance,
           status: 'active',
           createdBy: req.user ? req.user._id : null,
         });
       }
     } else if (linkedPayment) {
       linkedPayment.status = 'voided';
+      linkedPayment.remarks = 'Voided due to bill edit with 0 varavu';
       await linkedPayment.save();
     }
 
-    // 6. Audit log
-    await AuditLog.create({
+    AuditLog.create({
       action: 'update_bill',
       entityType: 'bill',
       entityId: bill._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
       previousState: previousBillState,
       newState: bill.toObject(),
-    });
+    }).catch((err) => console.warn('[Bill] Audit log notice:', err.message));
 
     res.json({
       success: true,
-      message: 'Bill updated and customer balance recalculated safely',
+      message: 'Bill updated successfully',
       data: bill,
     });
   } catch (error) {
@@ -529,13 +571,13 @@ const updateBill = async (req, res) => {
   }
 };
 
-// @desc Cancel / Void a Bill and reverse customer balance
+// @desc Cancel / Void a bill and reverse customer balance
 // @route POST /api/bills/:id/cancel
 const cancelBill = async (req, res) => {
   try {
-    const { reason } = req.body;
-    const bill = await Bill.findById(req.params.id);
+    const { reason = 'Cancelled by administrator' } = req.body;
 
+    const bill = await Bill.findById(req.params.id);
     if (!bill) {
       return res.status(404).json({ success: false, message: 'Bill not found' });
     }
@@ -545,35 +587,44 @@ const cancelBill = async (req, res) => {
     }
 
     const customer = await Customer.findById(bill.customer);
-    if (customer) {
-      // Revert bill effect: todayTotal - discount - varavu
-      const billToday = bill.todayTotal !== undefined ? bill.todayTotal : bill.totalDebit;
-      const billDiscount = bill.discount || 0;
-      const billVaravu = bill.varavu !== undefined ? bill.varavu : (bill.cashReceived || 0);
-      const effect = round2(billToday - billDiscount - billVaravu);
-      customer.currentBalance = round2(customer.currentBalance - effect);
-      await customer.save();
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
     }
 
+    const previousBillState = bill.toObject();
+
+    // Reversal logic:
+    // When bill was created: customer balance became closingBalance = previousBalance + todayTotal - discount - varavu
+    // Net effect on balance was: todayTotal - discount - varavu
+    // To reverse: newBalance = currentBalance - (todayTotal - discount - varavu)
+    const netEffect = round2((bill.todayTotal || bill.totalDebit || 0) - (bill.discount || 0) - (bill.varavu || bill.cashReceived || 0));
+    customer.currentBalance = round2(customer.currentBalance - netEffect);
+
     bill.status = 'cancelled';
-    bill.cancellationReason = reason || 'Cancelled by admin';
-    await bill.save();
+    bill.cancellationReason = reason;
 
-    // Void any linked payment
-    await Payment.updateMany({ bill: bill._id }, { status: 'voided' });
+    // Void linked payment if exists
+    const paymentUpdate = Payment.updateMany(
+      { bill: bill._id },
+      { $set: { status: 'voided', remarks: `Voided due to Bill #${bill.billNumberFormatted} cancellation: ${reason}` } }
+    );
 
-    await AuditLog.create({
+    await Promise.all([bill.save(), customer.save(), paymentUpdate]);
+
+    AuditLog.create({
       action: 'cancel_bill',
       entityType: 'bill',
       entityId: bill._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
-      notes: reason || 'Cancelled',
-    });
+      previousState: previousBillState,
+      newState: bill.toObject(),
+    }).catch((err) => console.warn('[Bill] Audit log notice:', err.message));
 
     res.json({
       success: true,
-      message: 'Bill cancelled and balance reversed',
+      message: `Bill #${bill.billNumberFormatted} cancelled successfully`,
       data: bill,
+      newCustomerBalance: customer.currentBalance,
     });
   } catch (error) {
     console.error('[Bill] cancelBill error:', error);

@@ -19,27 +19,39 @@ const maskUri = (uri) => {
   return uri.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
 };
 
-let connectionPromise = null;
+/**
+ * Global cache for Mongoose connection in serverless (Vercel) environments.
+ * Prevents re-establishing connections across warm Lambda invocations.
+ */
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 /**
- * Robust MongoDB Atlas & local connection manager:
- * - Reads strictly from MONGODB_URI (no hardcoded fallback credentials)
+ * High-performance MongoDB Atlas & local connection manager:
+ * - Reuses existing warm connection immediately (0ms overhead)
  * - Targets database 'cpn_vegetables_db' (or 'cpn_vegetables_test_db' in test mode)
- * - Connection pooling: maxPoolSize: 20, minPoolSize: 2
- * - Timeouts: 10s server selection, 45s socket
- * - Graceful event listeners for reconnects and unexpected disconnections
+ * - Serverless-optimized connection pooling (maxPoolSize: 10, minPoolSize: 0)
+ * - Fast failover timeouts: 5s server selection, 30s socket timeout
+ * - autoIndex disabled in production to eliminate cold-start schema re-indexing latency
  * - Safe credential masking in logs
- * - Shared Promise memoization ensures callers await until readyState === 1
  */
 const connectDB = async () => {
-  // If already connected, return existing connection immediately
+  // 1. If already connected and ready, return existing connection immediately
   if (mongoose.connection.readyState === 1) {
+    cached.conn = mongoose.connection;
     return mongoose.connection;
   }
 
-  // If a connection attempt is already in flight, await the same promise
-  if (connectionPromise) {
-    return connectionPromise;
+  // 2. If a cached connection is valid, return it
+  if (cached.conn && cached.conn.readyState === 1) {
+    return cached.conn;
+  }
+
+  // 3. If a connection attempt is already in flight, await the same promise
+  if (cached.promise) {
+    return cached.promise;
   }
 
   const mongoUri = process.env.MONGODB_URI;
@@ -54,7 +66,7 @@ const connectDB = async () => {
     throw new Error(errorMsg);
   }
 
-  connectionPromise = (async () => {
+  cached.promise = (async () => {
     // Configure event listeners once
     if (mongoose.connection.listenerCount('disconnected') === 0) {
       mongoose.connection.on('connected', () => {
@@ -87,26 +99,34 @@ const connectDB = async () => {
     }
 
     const isServerless = Boolean(process.env.VERCEL);
+    const isProduction = process.env.NODE_ENV === 'production';
+
     const conn = await mongoose.connect(mongoUri, {
       dbName: targetDbName,
       maxPoolSize: isServerless ? 10 : 20,
       minPoolSize: isServerless ? 0 : 2,
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      connectTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+      socketTimeoutMS: 30000,
       family: isServerless ? undefined : 4,
-      autoIndex: true,
+      autoIndex: !isProduction, // Disable autoIndex in production to prevent cold-start re-indexing overhead
     });
 
+    cached.conn = conn;
     console.log(
       `[MongoDB] Connected successfully to host: ${conn.connection.host}, database: ${conn.connection.name}`
     );
     return conn;
-  })().finally(() => {
-    connectionPromise = null;
-  });
+  })()
+    .catch((err) => {
+      cached.promise = null;
+      throw err;
+    })
+    .finally(() => {
+      cached.promise = null;
+    });
 
-  return connectionPromise;
+  return cached.promise;
 };
 
 /**

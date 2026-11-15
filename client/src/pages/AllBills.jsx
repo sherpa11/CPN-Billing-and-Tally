@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import { useSettings } from '../context/SettingsContext';
+import { useDebounce } from '../hooks/useDebounce';
 import { formatCurrency, formatNumber } from '../utils/math';
 import PrintModal from '../components/PrintModal';
 
@@ -22,6 +23,7 @@ export const AllBills = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 300);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [status, setStatus] = useState('all');
@@ -47,7 +49,7 @@ export const AllBills = () => {
         limit: 25,
         status,
       });
-      if (search.trim()) params.append('search', search.trim());
+      if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
       if (startDate) params.append('startDate', startDate);
       if (endDate) params.append('endDate', endDate);
 
@@ -66,7 +68,7 @@ export const AllBills = () => {
 
   useEffect(() => {
     fetchBills();
-  }, [page, status, startDate, endDate]);
+  }, [page, status, startDate, endDate, debouncedSearch]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();

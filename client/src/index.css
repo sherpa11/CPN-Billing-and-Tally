@@ -69,16 +69,18 @@ body.print-bill-active #print-root {
 /* DEDICATED A6 PORTRAIT (105mm × 148mm) PRINT STYLESHEET                     */
 /* Strict 1-Sheet Geometry for Canon G3030 series & Chrome                   */
 /* ========================================================================= */
-/* Top-level @page rule ensures browser print dialog defaults directly to A6 (105mm × 148mm) */
+/* Top-level default @page rule (A4 portrait default for business reports) */
 @page {
-  size: 105mm 148mm;
-  margin: 0;
+  size: A4 portrait;
+  margin: 10mm 10mm 12mm 10mm;
 }
 
 @media print {
-
-  /* Reset body and html to exact A6 page dimensions */
-  html, body {
+  /* ========================================================================= */
+  /* 1. DEDICATED A6 BILL PRINTING (Strictly scoped to body.print-bill-active)  */
+  /* ========================================================================= */
+  body.print-bill-active,
+  body.print-bill-active html {
     width: 105mm !important;
     height: 148mm !important;
     min-height: 0 !important;
@@ -112,21 +114,10 @@ body.print-bill-active #print-root {
   }
 
   /* Clean portal styling in print so the bill is the only rendered element */
-  body.print-bill-active {
-    width: 105mm !important;
-    height: 148mm !important;
-    min-height: 0 !important;
-    max-height: 148mm !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    background: #ffffff !important;
-  }
-
-  .print-modal-portal,
-  .print-modal-container,
-  .print-modal-scroll-area,
-  .print-bill-scaler {
+  body.print-bill-active .print-modal-portal,
+  body.print-bill-active .print-modal-container,
+  body.print-bill-active .print-modal-scroll-area,
+  body.print-bill-active .print-bill-scaler {
     position: static !important;
     display: block !important;
     background: transparent !important;
@@ -141,6 +132,132 @@ body.print-bill-active #print-root {
     overflow: visible !important;
     transform: none !important;
     border-radius: 0 !important;
+  }
+
+  /* ========================================================================= */
+  /* 2. GENERAL & A4 REPORT PRINTING (When NOT printing a bill)                */
+  /* ========================================================================= */
+  body:not(.print-bill-active) {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body:not(.print-bill-active) #root {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body:not(.print-bill-active) #print-root {
+    display: none !important;
+  }
+
+  /* ========================================================================= */
+  /* 3. DEDICATED A4 REPORT PRINT STYLES                                      */
+  /* ========================================================================= */
+  .report-print-header {
+    display: none;
+  }
+
+  body.print-report-active .report-print-header {
+    display: block !important;
+    margin-bottom: 16px !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  body.print-report-active .report-card {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    width: 100% !important;
+  }
+
+  /* Full-width clean tabular layout */
+  body.print-report-active table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+    margin-top: 10px !important;
+  }
+
+  body.print-report-active thead {
+    display: table-header-group !important;
+  }
+
+  body.print-report-active tfoot {
+    display: table-footer-group !important;
+  }
+
+  body.print-report-active tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.print-report-active th {
+    background-color: #034D28 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    border: 1px solid #02381c !important;
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  body.print-report-active td {
+    border: 1px solid #d1d5db !important;
+    padding: 5px 8px !important;
+    font-size: 11px !important;
+    color: #111827 !important;
+  }
+
+  body.print-report-active tbody tr:nth-child(even) {
+    background-color: #f9fafb !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.print-report-active tfoot tr {
+    background-color: #f3f4f6 !important;
+    font-weight: 800 !important;
+    border-top: 2px solid #034D28 !important;
+    border-bottom: 3px double #034D28 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.print-report-active .report-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  body.print-report-active .report-summary-card {
+    border: 1.5px solid #d1d5db !important;
+    background-color: #fcfdfc !important;
+    padding: 8px 10px !important;
+    border-radius: 6px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Hide all website navigation, dashboard, forms, buttons and modal chrome */

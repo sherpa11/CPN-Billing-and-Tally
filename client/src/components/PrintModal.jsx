@@ -2,14 +2,15 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, X, CheckCircle2 } from 'lucide-react';
 import api from '../api/axios';
+import appCache from '../services/cache';
 import BillPrintTemplate from './BillPrintTemplate';
 import LegacyBillPrintTemplate from './LegacyBillPrintTemplate';
 
 /**
  * PrintModal component:
  * 1. Mounts via React Portal into #print-root (outside #root).
- * 2. Adds 'print-bill-active' to document.body, which completely hides #root in @media print.
- * 3. Enforces A5 sheet layout (148mm × 210mm) and guarantees ONLY the bill prints on 1 sheet.
+ * 2. Adds 'print-bill-active' to document.body and injects A6 @page rule.
+ * 3. Enforces A6 sheet layout (105mm × 148mm) and guarantees ONLY the bill prints on 1 sheet.
  */
 export const PrintModal = ({
   isOpen,
@@ -23,13 +24,20 @@ export const PrintModal = ({
   const [masterVegetables, setMasterVegetables] = useState([]);
   const scrollAreaRef = useRef(null);
 
-  // Load master vegetables for resolving Tamil names in printed bills
+  // Load master vegetables for resolving Tamil names in printed bills (with in-memory cache)
   useEffect(() => {
     let isMounted = true;
+    const cachedVegs = appCache.get('vegetables_active') || appCache.get('vegetables_all');
+    if (cachedVegs && cachedVegs.length > 0) {
+      setMasterVegetables(cachedVegs);
+      return;
+    }
+
     api.get('/vegetables?activeOnly=all&limit=500')
       .then((res) => {
         if (isMounted && res.success && Array.isArray(res.data)) {
           setMasterVegetables(res.data);
+          appCache.set('vegetables_all', res.data, 5 * 60 * 1000);
         }
       })
       .catch((err) => console.warn('Could not load vegetables for print modal:', err));
@@ -47,15 +55,26 @@ export const PrintModal = ({
     setPrintMountNode(node);
   }, []);
 
-  // Manage body class 'print-bill-active' when modal is open
+  // Manage body class 'print-bill-active' and dynamic A6 @page style when modal is open
   useEffect(() => {
     if (isOpen && bill) {
       document.body.classList.add('print-bill-active');
+      let styleTag = document.getElementById('a6-bill-print-style');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'a6-bill-print-style';
+        styleTag.textContent = '@page { size: 105mm 148mm; margin: 0; }';
+        document.head.appendChild(styleTag);
+      }
     } else {
       document.body.classList.remove('print-bill-active');
+      const styleTag = document.getElementById('a6-bill-print-style');
+      if (styleTag) styleTag.remove();
     }
     return () => {
       document.body.classList.remove('print-bill-active');
+      const styleTag = document.getElementById('a6-bill-print-style');
+      if (styleTag) styleTag.remove();
     };
   }, [isOpen, bill]);
 

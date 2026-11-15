@@ -14,6 +14,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import api from '../api/axios';
+import { appCache } from '../services/cache';
 import { useSettings } from '../context/SettingsContext';
 import { round2, add2, sub2, mul2, formatCurrency, formatNumber } from '../utils/math';
 import CustomerAutocomplete from '../components/CustomerAutocomplete';
@@ -69,19 +70,34 @@ export const NewBill = () => {
   const customerInputRef = useRef(null);
   const cellRefs = useRef([]);
 
-  // Fetch initial reference data
+  // Fetch initial reference data with client-side caching
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [vegRes, custRes, billNumRes] = await Promise.all([
-          api.get('/vegetables?activeOnly=true'),
+        const cachedVeg = appCache.get('vegetables_active');
+        if (cachedVeg && Array.isArray(cachedVeg)) {
+          setVegetables(cachedVeg);
+        }
+
+        const promises = [
           api.get('/customers?activeOnly=true&limit=500'),
           api.get('/bills/next-number'),
-        ]);
+        ];
+        if (!cachedVeg) {
+          promises.push(api.get('/vegetables?activeOnly=true'));
+        }
 
-        if (vegRes.success) setVegetables(vegRes.data);
+        const results = await Promise.all(promises);
+        const custRes = results[0];
+        const billNumRes = results[1];
+        const vegRes = !cachedVeg ? results[2] : null;
+
         if (custRes.success) setCustomers(custRes.data);
         if (billNumRes.success) setNextBillInfo(billNumRes);
+        if (vegRes && vegRes.success) {
+          setVegetables(vegRes.data);
+          appCache.set('vegetables_active', vegRes.data, 10 * 60 * 1000);
+        }
       } catch (err) {
         console.error('Failed to load initial billing data:', err);
         setError('Error connecting to server. Please refresh.');
@@ -90,41 +106,36 @@ export const NewBill = () => {
     loadData();
   }, []);
 
-  // When customer changes, automatically update Previous Balance & its Date
-  const handleSelectCustomer = async (cust) => {
+  // When customer changes, automatically update Previous Balance & its Date instantly
+  const handleSelectCustomer = (cust) => {
     setSelectedCustomer(cust);
     setCustomerName(cust.name || '');
     setCustomerPhone(cust.phone || '');
     setPreviousBalance(round2(cust.currentBalance || 0));
 
-    if (cust._id) {
-      try {
-        const res = await api.get(`/customers/${cust._id}`);
+    if (cust.lastTransactionDate) {
+      setPreviousBalanceDate(new Date(cust.lastTransactionDate).toISOString().split('T')[0]);
+    } else if (cust.createdAt) {
+      setPreviousBalanceDate(new Date(cust.createdAt).toISOString().split('T')[0]);
+    } else if (cust._id) {
+      // Background non-blocking fetch only if date is not available
+      api.get(`/customers/${cust._id}`).then((res) => {
         if (res.success && res.data) {
-          if (res.data.lastBalanceDate) {
-            const d = new Date(res.data.lastBalanceDate).toISOString().split('T')[0];
-            setPreviousBalanceDate(d);
-          } else if (res.data.customer?.lastTransactionDate) {
-            const d = new Date(res.data.customer.lastTransactionDate).toISOString().split('T')[0];
-            setPreviousBalanceDate(d);
-          } else {
-            setPreviousBalanceDate('');
-          }
+          const d = res.data.lastBalanceDate || res.data.customer?.lastTransactionDate;
+          if (d) setPreviousBalanceDate(new Date(d).toISOString().split('T')[0]);
           if (res.data.customer?.currentBalance !== undefined) {
             setPreviousBalance(round2(res.data.customer.currentBalance));
           }
         }
-      } catch (e) {
-        console.warn('Could not load detailed customer balance info:', e);
-      }
+      }).catch((e) => console.warn('Could not load detailed balance:', e));
     } else {
       setPreviousBalanceDate('');
     }
 
-    // Move focus to first vegetable particulars cell
+    // Move focus to first vegetable particulars cell immediately
     setTimeout(() => {
       cellRefs.current[0]?.particulars?.focus();
-    }, 50);
+    }, 10);
   };
 
   // Row update helper (functional update to prevent state clobbering)
@@ -200,6 +211,7 @@ export const NewBill = () => {
   };
 
   const handleVegetableAdded = (newVeg) => {
+    appCache.invalidate('vegetables_active');
     // Add to master list
     setVegetables((prev) => [newVeg, ...prev]);
 
@@ -304,8 +316,10 @@ export const NewBill = () => {
     }
   };
 
-  // Submit Bill
+  // Submit Bill (Optimized Save & New Workflow)
   const handleSubmitBill = async (options = { autoPrint: false }) => {
+    if (loading) return null; // Prevent duplicate submissions
+
     const finalCustName = customerName.trim() || selectedCustomer?.name || '';
     if (!finalCustName) {
       setError('Please select or enter customer name');
@@ -369,30 +383,37 @@ export const NewBill = () => {
       if (res.success && res.data) {
         setSuccessMsg(`Bill #${res.data.billNumberFormatted} saved successfully!`);
 
-        // Refresh next bill info
+        // Optimistically increment next bill number locally
+        if (res.data.billNumber) {
+          const nextNum = res.data.billNumber + 1;
+          const prefix = settings.billPrefix || 'CPN';
+          setNextBillInfo({
+            nextBillNumber: nextNum,
+            formattedBillNumber: `${prefix}-${String(nextNum).padStart(4, '0')}`,
+          });
+        }
+
+        // Background synchronization
         api.get('/bills/next-number').then((nRes) => {
           if (nRes.success) setNextBillInfo(nRes);
         });
 
         if (options.autoPrint) {
-          // Open print preview modal and trigger print
           setAutoPrint(true);
           setPrintModalBill(res.data);
         } else {
-          // Reset for next bill
-          setTimeout(() => {
-            setSelectedCustomer(null);
-            setCustomerName('');
-            setCustomerPhone('');
-            setPreviousBalance(0);
-            setPreviousBalanceDate('');
-            setCashReceived('');
-            setDiscount('');
-            setVaravu('');
-            setNotes('');
-            setItems([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
-            customerInputRef.current?.focus();
-          }, 500);
+          // Instant form reset for seamless Save & New continuous billing
+          setSelectedCustomer(null);
+          setCustomerName('');
+          setCustomerPhone('');
+          setPreviousBalance(0);
+          setPreviousBalanceDate('');
+          setCashReceived('');
+          setDiscount('');
+          setVaravu('');
+          setNotes('');
+          setItems([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
+          customerInputRef.current?.focus();
         }
 
         return res.data;

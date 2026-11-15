@@ -62,6 +62,13 @@ export const TestPrintPage = () => {
 
   useEffect(() => {
     document.body.classList.add('print-bill-active');
+    let styleTag = document.getElementById('a6-bill-print-style');
+    if (!styleTag) {
+      styleTag = document.createElement('style');
+      styleTag.id = 'a6-bill-print-style';
+      styleTag.textContent = '@page { size: 105mm 148mm; margin: 0; }';
+      document.head.appendChild(styleTag);
+    }
     let node = document.getElementById('print-root');
     if (!node) {
       node = document.createElement('div');
@@ -72,6 +79,8 @@ export const TestPrintPage = () => {
 
     return () => {
       document.body.classList.remove('print-bill-active');
+      const st = document.getElementById('a6-bill-print-style');
+      if (st) st.remove();
     };
   }, []);
 
