@@ -69,16 +69,20 @@ body.print-bill-active #print-root {
 /* DEDICATED A6 PORTRAIT (105mm × 148mm) PRINT STYLESHEET                     */
 /* Strict 1-Sheet Geometry for Canon G3030 series & Chrome                   */
 /* ========================================================================= */
+/* Top-level @page rule ensures browser print dialog defaults directly to A6 (105mm × 148mm) */
+@page {
+  size: 105mm 148mm;
+  margin: 0;
+}
+
 @media print {
-  @page {
-    size: 105mm 148mm;
-    margin: 0;
-  }
 
   /* Reset body and html to exact A6 page dimensions */
   html, body {
     width: 105mm !important;
     height: 148mm !important;
+    min-height: 0 !important;
+    max-height: 148mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
@@ -98,14 +102,21 @@ body.print-bill-active #print-root {
     display: block !important;
     position: static !important;
     width: 105mm !important;
+    height: 148mm !important;
+    min-height: 0 !important;
+    max-height: 148mm !important;
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   /* Clean portal styling in print so the bill is the only rendered element */
   body.print-bill-active {
+    width: 105mm !important;
+    height: 148mm !important;
+    min-height: 0 !important;
+    max-height: 148mm !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: hidden !important;
@@ -147,28 +158,37 @@ body.print-bill-active #print-root {
     display: none !important;
   }
 
+  /* Test Print Page Print Cleanup */
+  .test-print-wrapper {
+    background: #ffffff !important;
+    min-height: 0 !important;
+    max-height: 148mm !important;
+    height: 148mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
   /* Dedicated Print Container for A6 Bill */
   #printable-bill {
     margin: 0 !important;
     padding: 0 !important;
     width: 105mm !important;
     max-width: 105mm !important;
-    height: 148mm !important;
-    max-height: 148mm !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     page-break-after: avoid !important;
     break-after: avoid !important;
   }
 
-  /* Exact A6 Dimensions for CPN Bill (98mm width × 139mm height centered on 105mm × 148mm A6 paper) */
+  /* Exact A6 Dimensions for CPN Bill (105mm width × 148mm height precisely filling A6 paper) */
   .cpn-a6-bill {
     position: relative !important;
     display: block !important;
-    width: 98mm !important;
-    max-width: 98mm !important;
-    height: 139mm !important;
-    max-height: 139mm !important;
-    margin: 2mm auto 0 auto !important;
+    width: 105mm !important;
+    max-width: 105mm !important;
+    height: 148mm !important;
+    max-height: 148mm !important;
+    margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
     box-sizing: border-box !important;
@@ -179,6 +199,11 @@ body.print-bill-active #print-root {
     overflow: hidden !important;
     box-shadow: none !important;
     border: none !important;
+  }
+
+  .cpn-a6-bill-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
   }
 
   .page-break-after {

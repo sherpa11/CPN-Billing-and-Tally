@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import BillPrintTemplate from '../components/BillPrintTemplate';
 
@@ -36,8 +37,9 @@ export const TestPrintPage = () => {
   const todayTotal = items.reduce((sum, it) => sum + it.amount, 0);
   const prevBalance = 2500;
   const total = todayTotal + prevBalance;
+  const discount = Number(searchParams.get('discount') || 0);
   const varavu = 5000;
-  const closingBalance = total - varavu;
+  const closingBalance = total - discount - varavu;
 
   const mockBill = {
     billNumberFormatted: `CPN-${String(1000 + itemCount)}`,
@@ -49,16 +51,37 @@ export const TestPrintPage = () => {
     previousBalance: prevBalance,
     previousBalanceDate: new Date('2026-11-10'),
     grandTotal: total,
+    discount,
     varavu,
     cashReceived: varavu,
     closingBalance,
     billVersion: 'v3_new_6row',
   };
 
-  return (
-    <div style={{ background: '#e5e7eb', minHeight: '100vh', padding: '20px', display: 'flex', justifyContent: 'center', alignItems: 'flex-start' }}>
+  const [mountNode, setMountNode] = useState(null);
+
+  useEffect(() => {
+    document.body.classList.add('print-bill-active');
+    let node = document.getElementById('print-root');
+    if (!node) {
+      node = document.createElement('div');
+      node.id = 'print-root';
+      document.body.appendChild(node);
+    }
+    setMountNode(node);
+
+    return () => {
+      document.body.classList.remove('print-bill-active');
+    };
+  }, []);
+
+  if (!mountNode) return null;
+
+  return createPortal(
+    <div style={{ background: '#ffffff', margin: 0, padding: 0 }}>
       <BillPrintTemplate bill={mockBill} />
-    </div>
+    </div>,
+    mountNode
   );
 };
 

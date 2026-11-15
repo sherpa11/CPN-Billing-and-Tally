@@ -76,7 +76,7 @@ export const PrintModal = ({
     const computeScale = () => {
       if (!scrollAreaRef.current) return;
       const clientWidth = scrollAreaRef.current.clientWidth;
-      const baseWidthPx = 375; // 98mm in 96 DPI CSS pixels
+      const baseWidthPx = 397; // 105mm in 96 DPI CSS pixels (105 / 25.4 * 96)
       const availableWidth = clientWidth - 24;
       if (availableWidth > 0 && availableWidth < baseWidthPx) {
         setScale(availableWidth / baseWidthPx);
