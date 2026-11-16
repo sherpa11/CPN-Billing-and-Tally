@@ -147,10 +147,10 @@ export const AllBills = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by Customer name or Bill #..."
-              className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold focus:border-[#034D28] outline-none"
+              placeholder="Search Customer or Bill #..."
+              className="w-full min-h-[42px] pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold focus:border-[#034D28] outline-none"
             />
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
           </div>
 
           {/* Start Date */}
@@ -162,7 +162,7 @@ export const AllBills = () => {
                 setStartDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm font-mono-num font-bold focus:border-[#034D28] outline-none"
+              className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl text-sm font-mono-num font-bold focus:border-[#034D28] outline-none"
             />
           </div>
 
@@ -175,7 +175,7 @@ export const AllBills = () => {
                 setEndDate(e.target.value);
                 setPage(1);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm font-mono-num font-bold focus:border-[#034D28] outline-none"
+              className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl text-sm font-mono-num font-bold focus:border-[#034D28] outline-none"
             />
           </div>
 
@@ -187,7 +187,7 @@ export const AllBills = () => {
                 setStatus(e.target.value);
                 setPage(1);
               }}
-              className="flex-1 px-2.5 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white"
+              className="flex-1 min-h-[42px] px-2.5 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white"
             >
               <option value="active">Active</option>
               <option value="cancelled">Cancelled</option>
@@ -195,7 +195,7 @@ export const AllBills = () => {
             </select>
             <button
               type="submit"
-              className="px-4 py-2 bg-[#034D28] text-white rounded-xl font-bold text-xs hover:bg-[#02361c] transition-colors"
+              className="min-h-[42px] px-4 py-2 bg-[#034D28] text-white rounded-xl font-bold text-xs hover:bg-[#02361c] transition-colors"
             >
               Search
             </button>
@@ -216,99 +216,188 @@ export const AllBills = () => {
             <p className="text-xs text-gray-500">Create a new bill from the New Bill tab</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  <th className="py-3 px-4">Bill No</th>
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Customer Name</th>
-                  <th className="py-3 px-4 text-center">Bags</th>
-                  <th className="py-3 px-4 text-right">Weight (Kg)</th>
-                  <th className="py-3 px-4 text-right">Today Total (₹)</th>
-                  <th className="py-3 px-4 text-right">Discount (₹)</th>
-                  <th className="py-3 px-4 text-right">Varavu (₹)</th>
-                  <th className="py-3 px-4 text-right">Closing Bal (₹)</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {bills.map((bill) => (
-                  <tr
-                    key={bill._id}
-                    className="hover:bg-emerald-50/30 transition-colors font-medium text-gray-900"
-                  >
-                    <td className="py-3 px-4 font-mono-num font-black text-[#034D28]">
-                      {bill.billNumberFormatted || `#${bill.billNumber}`}
-                    </td>
-                    <td className="py-3 px-4 font-mono-num text-xs text-gray-600">
-                      {formatDate(bill.billDate)}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-gray-900">{bill.customerName}</div>
-                      {bill.customerPhone && (
-                        <div className="text-xs text-gray-400 font-mono-num">{bill.customerPhone}</div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-center font-mono-num font-bold">
-                      {bill.totalBag || 0}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num">
-                      {formatNumber(bill.totalWeight)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num font-bold text-gray-950">
-                      ₹{formatCurrency(bill.todayTotal !== undefined && bill.todayTotal !== null ? bill.todayTotal : bill.totalDebit)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num text-amber-800 font-bold">
-                      {bill.discount > 0 ? `₹${formatCurrency(bill.discount)}` : '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num text-emerald-800 font-bold">
-                      {(bill.varavu !== undefined ? bill.varavu : bill.cashReceived) > 0
-                        ? `₹${formatCurrency(bill.varavu !== undefined ? bill.varavu : bill.cashReceived)}`
-                        : '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num font-extrabold text-[#034D28]">
-                      ₹{formatCurrency(bill.closingBalance)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span
-                        className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                          bill.status === 'cancelled'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-emerald-100 text-[#034D28]'
-                        }`}
+          <>
+            {/* Mobile Card View (md:hidden) */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {bills.map((bill) => (
+                <div key={bill._id} className="p-4 space-y-3 hover:bg-emerald-50/20 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono-num font-black text-[#034D28] text-base">
+                          {bill.billNumberFormatted || `#${bill.billNumber}`}
+                        </span>
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            bill.status === 'cancelled'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-emerald-100 text-[#034D28]'
+                          }`}
+                        >
+                          {bill.status === 'cancelled' ? 'Cancelled' : 'Active'}
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 font-mono-num mt-0.5">
+                        {formatDate(bill.billDate)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handlePrintBill(bill)}
+                        className="min-h-[40px] px-3 bg-emerald-100 text-[#034D28] hover:bg-emerald-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors"
+                        title="Print Bill"
                       >
-                        {bill.status === 'cancelled' ? 'Cancelled' : 'Active'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                        <Printer className="w-4 h-4" />
+                        <span>Print</span>
+                      </button>
+                      {bill.status !== 'cancelled' && (
                         <button
                           type="button"
-                          onClick={() => handlePrintBill(bill)}
-                          className="p-1.5 bg-emerald-100 text-[#034D28] hover:bg-emerald-200 rounded-lg transition-colors"
-                          title="Print / View Bill"
+                          onClick={() => setCancellingBill(bill)}
+                          className="min-h-[40px] p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                          title="Cancel Bill"
                         >
-                          <Printer className="w-4 h-4" />
+                          <XCircle className="w-5 h-5" />
                         </button>
-                        {bill.status !== 'cancelled' && (
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="font-bold text-gray-900 text-sm">{bill.customerName}</div>
+                    {bill.customerPhone && (
+                      <div className="text-xs text-gray-400 font-mono-num">{bill.customerPhone}</div>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-gray-50 p-2.5 rounded-xl border border-gray-100">
+                    <div>
+                      <span className="text-gray-500 block text-[11px]">Bags / Weight:</span>
+                      <span className="font-mono-num font-bold text-gray-800">
+                        {bill.totalBag || 0} bags • {formatNumber(bill.totalWeight)} kg
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-gray-500 block text-[11px]">Today Total:</span>
+                      <span className="font-mono-num font-black text-gray-900 text-sm">
+                        ₹{formatCurrency(bill.todayTotal !== undefined && bill.todayTotal !== null ? bill.todayTotal : bill.totalDebit)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500 block text-[11px]">Varavu (Received):</span>
+                      <span className="font-mono-num font-bold text-emerald-800">
+                        {(bill.varavu !== undefined ? bill.varavu : bill.cashReceived) > 0
+                          ? `₹${formatCurrency(bill.varavu !== undefined ? bill.varavu : bill.cashReceived)}`
+                          : '₹0.00'}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-gray-500 block text-[11px]">Closing Balance:</span>
+                      <span className="font-mono-num font-black text-[#034D28] text-sm">
+                        ₹{formatCurrency(bill.closingBalance)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <th className="py-3 px-4">Bill No</th>
+                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Customer Name</th>
+                    <th className="py-3 px-4 text-center">Bags</th>
+                    <th className="py-3 px-4 text-right">Weight (Kg)</th>
+                    <th className="py-3 px-4 text-right">Today Total (₹)</th>
+                    <th className="py-3 px-4 text-right">Discount (₹)</th>
+                    <th className="py-3 px-4 text-right">Varavu (₹)</th>
+                    <th className="py-3 px-4 text-right">Closing Bal (₹)</th>
+                    <th className="py-3 px-4 text-center">Status</th>
+                    <th className="py-3 px-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {bills.map((bill) => (
+                    <tr
+                      key={bill._id}
+                      className="hover:bg-emerald-50/30 transition-colors font-medium text-gray-900"
+                    >
+                      <td className="py-3 px-4 font-mono-num font-black text-[#034D28]">
+                        {bill.billNumberFormatted || `#${bill.billNumber}`}
+                      </td>
+                      <td className="py-3 px-4 font-mono-num text-xs text-gray-600">
+                        {formatDate(bill.billDate)}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-bold text-gray-900">{bill.customerName}</div>
+                        {bill.customerPhone && (
+                          <div className="text-xs text-gray-400 font-mono-num">{bill.customerPhone}</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-center font-mono-num font-bold">
+                        {bill.totalBag || 0}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num">
+                        {formatNumber(bill.totalWeight)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num font-bold text-gray-950">
+                        ₹{formatCurrency(bill.todayTotal !== undefined && bill.todayTotal !== null ? bill.todayTotal : bill.totalDebit)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num text-amber-800 font-bold">
+                        {bill.discount > 0 ? `₹${formatCurrency(bill.discount)}` : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num text-emerald-800 font-bold">
+                        {(bill.varavu !== undefined ? bill.varavu : bill.cashReceived) > 0
+                          ? `₹${formatCurrency(bill.varavu !== undefined ? bill.varavu : bill.cashReceived)}`
+                          : '-'}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num font-extrabold text-[#034D28]">
+                        ₹{formatCurrency(bill.closingBalance)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            bill.status === 'cancelled'
+                              ? 'bg-red-100 text-red-700'
+                              : 'bg-emerald-100 text-[#034D28]'
+                          }`}
+                        >
+                          {bill.status === 'cancelled' ? 'Cancelled' : 'Active'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => setCancellingBill(bill)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Cancel Bill"
+                            onClick={() => handlePrintBill(bill)}
+                            className="p-1.5 bg-emerald-100 text-[#034D28] hover:bg-emerald-200 rounded-lg transition-colors cursor-pointer"
+                            title="Print / View Bill"
                           >
-                            <XCircle className="w-4 h-4" />
+                            <Printer className="w-4 h-4" />
                           </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                          {bill.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => setCancellingBill(bill)}
+                              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                              title="Cancel Bill"
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* Pagination bar */}

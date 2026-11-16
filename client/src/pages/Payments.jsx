@@ -159,7 +159,7 @@ export const Payments = () => {
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold font-mono-num"
+            className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold font-mono-num"
           />
         </div>
         <div>
@@ -167,14 +167,14 @@ export const Payments = () => {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold font-mono-num"
+            className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold font-mono-num"
           />
         </div>
         <div>
           <select
             value={modeFilter}
             onChange={(e) => setModeFilter(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white"
+            className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white"
           >
             <option value="">All Payment Modes</option>
             <option value="Cash">Cash</option>
@@ -185,7 +185,7 @@ export const Payments = () => {
         </div>
       </div>
 
-      {/* Payments Table */}
+      {/* Payments Table / Card Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-gray-500 font-semibold">
@@ -197,77 +197,137 @@ export const Payments = () => {
             <p className="font-bold text-base text-gray-700">No payment records found</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 uppercase tracking-wider">
-                  <th className="py-3 px-4">Date</th>
-                  <th className="py-3 px-4">Receipt #</th>
-                  <th className="py-3 px-4">Customer Name</th>
-                  <th className="py-3 px-4">Mode</th>
-                  <th className="py-3 px-4 text-right">Amount (₹)</th>
-                  <th className="py-3 px-4 text-right">Resulting Balance (₹)</th>
-                  <th className="py-3 px-4">Remarks</th>
-                  <th className="py-3 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments.map((p) => (
-                  <tr key={p._id} className="hover:bg-gray-50/50">
-                    <td className="py-3 px-4 font-mono-num text-xs text-gray-600">
-                      {new Date(p.paymentDate).toLocaleDateString('en-IN')}
-                    </td>
-                    <td className="py-3 px-4 font-mono-num font-bold text-[#034D28]">
-                      PAY-{p.paymentNumber || p._id.slice(-4)}
-                    </td>
-                    <td className="py-3 px-4 font-bold text-gray-900">
-                      {p.customerName}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
-                        {getModeIcon(p.paymentMode)}
-                        <span>{p.paymentMode}</span>
+          <>
+            {/* Mobile Payment Cards (md:hidden) */}
+            <div className="md:hidden divide-y divide-gray-100">
+              {payments.map((p) => (
+                <div key={p._id} className="p-4 space-y-2.5 hover:bg-emerald-50/20 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono-num font-black text-[#034D28] text-sm">
+                          PAY-{p.paymentNumber || p._id.slice(-4)}
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-gray-100 text-gray-700">
+                          {getModeIcon(p.paymentMode)}
+                          <span>{p.paymentMode}</span>
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-500 font-mono-num mt-0.5">
+                        {new Date(p.paymentDate).toLocaleDateString('en-IN')}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono-num font-black text-emerald-800 text-base block">
+                        ₹{formatCurrency(p.amount)}
                       </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num font-black text-emerald-800 text-base">
-                      ₹{formatCurrency(p.amount)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono-num font-bold text-gray-700">
-                      ₹{formatCurrency(p.resultingBalance)}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-gray-500">
-                      {p.referenceNumber && <span className="font-mono-num font-semibold text-gray-700 block">Ref: {p.referenceNumber}</span>}
-                      {p.remarks}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <button
-                        type="button"
-                        onClick={() => handleVoidPayment(p._id)}
-                        className="text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded-md font-bold transition-colors"
-                      >
-                        Void
-                      </button>
-                    </td>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-bold text-gray-900">{p.customerName}</span>
+                    <span className="text-xs font-mono-num text-gray-500">
+                      Bal: <strong className="text-gray-800">₹{formatCurrency(p.resultingBalance)}</strong>
+                    </span>
+                  </div>
+
+                  {(p.referenceNumber || p.remarks) && (
+                    <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                      {p.referenceNumber && (
+                        <div className="font-mono-num font-semibold text-gray-700">
+                          Ref: {p.referenceNumber}
+                        </div>
+                      )}
+                      {p.remarks && <div>{p.remarks}</div>}
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleVoidPayment(p._id)}
+                      className="min-h-[36px] px-3 text-xs text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg font-bold border border-red-200 transition-colors cursor-pointer"
+                    >
+                      Void Payment
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table View (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4">Receipt #</th>
+                    <th className="py-3 px-4">Customer Name</th>
+                    <th className="py-3 px-4">Mode</th>
+                    <th className="py-3 px-4 text-right">Amount (₹)</th>
+                    <th className="py-3 px-4 text-right">Resulting Balance (₹)</th>
+                    <th className="py-3 px-4">Remarks</th>
+                    <th className="py-3 px-4 text-center">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {payments.map((p) => (
+                    <tr key={p._id} className="hover:bg-gray-50/50">
+                      <td className="py-3 px-4 font-mono-num text-xs text-gray-600">
+                        {new Date(p.paymentDate).toLocaleDateString('en-IN')}
+                      </td>
+                      <td className="py-3 px-4 font-mono-num font-bold text-[#034D28]">
+                        PAY-{p.paymentNumber || p._id.slice(-4)}
+                      </td>
+                      <td className="py-3 px-4 font-bold text-gray-900">
+                        {p.customerName}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+                          {getModeIcon(p.paymentMode)}
+                          <span>{p.paymentMode}</span>
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num font-black text-emerald-800 text-base">
+                        ₹{formatCurrency(p.amount)}
+                      </td>
+                      <td className="py-3 px-4 text-right font-mono-num font-bold text-gray-700">
+                        ₹{formatCurrency(p.resultingBalance)}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-gray-500">
+                        {p.referenceNumber && <span className="font-mono-num font-semibold text-gray-700 block">Ref: {p.referenceNumber}</span>}
+                        {p.remarks}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleVoidPayment(p._id)}
+                          className="text-xs text-red-600 hover:text-red-800 hover:bg-red-50 px-2 py-1 rounded-md font-bold transition-colors cursor-pointer"
+                        >
+                          Void
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
       {/* Record Payment Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-200">
-            <div className="bg-[#034D28] text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+            <div className="bg-[#034D28] text-white px-5 py-4 flex items-center justify-between sticky top-0 z-10">
               <h3 className="font-bold text-base">
                 Record Direct Customer Payment
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAddOpen(false)}
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -303,11 +363,11 @@ export const Payments = () => {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-extrabold text-lg text-emerald-800"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-extrabold text-lg text-emerald-800"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Payment Date
@@ -316,7 +376,7 @@ export const Payments = () => {
                     type="date"
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-bold text-xs"
+                    className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-bold text-xs"
                   />
                 </div>
                 <div>
@@ -326,7 +386,7 @@ export const Payments = () => {
                   <select
                     value={paymentMode}
                     onChange={(e) => setPaymentMode(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-bold text-xs bg-white"
+                    className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-bold text-xs bg-white"
                   >
                     <option value="Cash">Cash</option>
                     <option value="UPI">UPI / GPay</option>
@@ -345,7 +405,7 @@ export const Payments = () => {
                   value={referenceNumber}
                   onChange={(e) => setReferenceNumber(e.target.value)}
                   placeholder="UPI Ref ID, Cheque number..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold text-xs"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold text-xs"
                 />
               </div>
 
@@ -358,7 +418,7 @@ export const Payments = () => {
                   value={remarks}
                   onChange={(e) => setRemarks(e.target.value)}
                   placeholder="e.g. Cleared Palani market balance"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none text-xs"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none text-xs"
                 />
               </div>
 
@@ -366,14 +426,14 @@ export const Payments = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+                  className="min-h-[42px] px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={formLoading}
-                  className="px-5 py-2 bg-[#034D28] text-white font-bold rounded-xl hover:bg-[#02361c] shadow-md disabled:opacity-50"
+                  className="min-h-[42px] px-5 py-2 bg-[#034D28] text-white font-bold rounded-xl hover:bg-[#02361c] shadow-md disabled:opacity-50"
                 >
                   {formLoading ? 'Saving...' : 'Record Payment'}
                 </button>

@@ -111,26 +111,28 @@ export const Dashboard = () => {
 
       {/* Metric Cards Grid */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Card 1: Today's Bills */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between min-h-[96px]">
             <div className="flex items-center justify-between text-gray-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Today's Bills</span>
-              <Receipt className="w-4 h-4 text-emerald-700" />
+              <Receipt className="w-4 h-4 text-emerald-700 flex-shrink-0" />
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-2xl font-black font-mono-num text-gray-900">
                 {stats.todayBillsCount}
               </span>
-              <span className="text-xs text-emerald-700 font-semibold">Active</span>
+              <span className="text-xs text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                Active
+              </span>
             </div>
           </div>
 
           {/* Card 2: Today's Sales */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between min-h-[96px]">
             <div className="flex items-center justify-between text-gray-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Today's Sales</span>
-              <TrendingUp className="w-4 h-4 text-[#034D28]" />
+              <TrendingUp className="w-4 h-4 text-[#034D28] flex-shrink-0" />
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-2xl font-black font-mono-num text-[#034D28]">
@@ -140,12 +142,12 @@ export const Dashboard = () => {
           </div>
 
           {/* Card 3: Today's Payments Received */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between min-h-[96px]">
             <div className="flex items-center justify-between text-gray-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Payments Received Today</span>
-              <Wallet className="w-4 h-4 text-emerald-600" />
+              <Wallet className="w-4 h-4 text-emerald-600 flex-shrink-0" />
             </div>
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-baseline justify-between flex-wrap gap-1">
               <span className="text-2xl font-black font-mono-num text-emerald-800">
                 ₹{formatCurrency(stats.todayPaymentsReceived !== undefined ? stats.todayPaymentsReceived : stats.todayCash)}
               </span>
@@ -158,10 +160,10 @@ export const Dashboard = () => {
           </div>
 
           {/* Card 4: Total Customer Outstanding */}
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col justify-between min-h-[96px]">
             <div className="flex items-center justify-between text-gray-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Total Outstanding</span>
-              <Users className="w-4 h-4 text-amber-700" />
+              <Users className="w-4 h-4 text-amber-700 flex-shrink-0" />
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-2xl font-black font-mono-num text-amber-800">
@@ -172,36 +174,42 @@ export const Dashboard = () => {
         </div>
       )}
 
-      {/* Secondary Stats Row */}
+      {/* Secondary Stats Row - Responsive Single Column on Mobile to Prevent Overflow */}
       {stats && (
-        <div className="grid grid-cols-2 gap-3.5">
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#034D28] flex items-center justify-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#034D28] flex items-center justify-center flex-shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-bold text-gray-500 uppercase block">Active Customers</span>
-                <span className="text-lg font-black font-mono-num text-gray-900">{stats.activeCustomers}</span>
+                <span className="text-xs font-bold text-gray-500 uppercase block leading-tight">Active Customers</span>
+                <span className="text-xl font-black font-mono-num text-gray-900">{stats.activeCustomers}</span>
               </div>
             </div>
-            <NavLink to="/customers" className="text-xs font-bold text-[#034D28] hover:underline flex items-center gap-0.5">
+            <NavLink
+              to="/customers"
+              className="text-xs font-bold text-[#034D28] hover:bg-emerald-100 flex items-center gap-1 flex-shrink-0 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+            >
               <span>View All</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </NavLink>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#034D28] flex items-center justify-center">
+          <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 rounded-xl bg-emerald-50 text-[#034D28] flex items-center justify-center flex-shrink-0">
                 <Carrot className="w-5 h-5" />
               </div>
               <div>
-                <span className="text-xs font-bold text-gray-500 uppercase block">Master Vegetables</span>
-                <span className="text-lg font-black font-mono-num text-gray-900">{stats.activeVegetables}</span>
+                <span className="text-xs font-bold text-gray-500 uppercase block leading-tight">Master Vegetables</span>
+                <span className="text-xl font-black font-mono-num text-gray-900">{stats.activeVegetables}</span>
               </div>
             </div>
-            <NavLink to="/vegetables" className="text-xs font-bold text-[#034D28] hover:underline flex items-center gap-0.5">
+            <NavLink
+              to="/vegetables"
+              className="text-xs font-bold text-[#034D28] hover:bg-emerald-100 flex items-center gap-1 flex-shrink-0 bg-emerald-50 px-2.5 py-1.5 rounded-xl border border-emerald-200 transition-colors"
+            >
               <span>Manage</span>
               <ArrowUpRight className="w-3.5 h-3.5" />
             </NavLink>
@@ -210,7 +218,7 @@ export const Dashboard = () => {
       )}
 
       {/* Recent Bills Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 space-y-3">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-5 space-y-3">
         <div className="flex items-center justify-between border-b pb-3">
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-[#034D28]" />
@@ -239,46 +247,27 @@ export const Dashboard = () => {
             </NavLink>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs md:text-sm border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-b text-gray-700 font-bold uppercase text-[11px]">
-                  <th className="py-2.5 px-3 text-left">Bill No</th>
-                  <th className="py-2.5 px-3 text-left">Customer</th>
-                  <th className="py-2.5 px-3 text-center">Bags</th>
-                  <th className="py-2.5 px-3 text-right">Weight (Kg)</th>
-                  <th className="py-2.5 px-3 text-right">Debit (₹)</th>
-                  <th className="py-2.5 px-3 text-right">Closing Bal (₹)</th>
-                  <th className="py-2.5 px-3 text-center w-14">Print</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {recentBills.map((b) => (
-                  <tr key={b._id} className="hover:bg-gray-50/70">
-                    <td className="py-2.5 px-3 font-mono-num font-bold text-[#034D28]">
+          <>
+            {/* Mobile View: Cards */}
+            <div className="md:hidden space-y-2.5">
+              {recentBills.map((b) => (
+                <div
+                  key={b._id}
+                  className="p-3 bg-gray-50/80 border border-gray-200 rounded-xl space-y-2"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono-num font-black text-[#034D28] text-sm">
                       {b.billNumberFormatted}
-                    </td>
-                    <td className="py-2.5 px-3 font-bold text-gray-900">
-                      {b.customerName}
-                    </td>
-                    <td className="py-2.5 px-3 text-center font-mono-num">
-                      {b.totalBag}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono-num">
-                      {formatNumber(b.totalWeight)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono-num font-black text-gray-950">
-                      ₹{formatCurrency(b.todayTotal !== undefined && b.todayTotal !== null ? b.todayTotal : b.totalDebit)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono-num font-extrabold text-[#034D28]">
-                      ₹{formatCurrency(b.closingBalance)}
-                    </td>
-                    <td className="py-2 px-3 text-center">
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-gray-500 font-mono-num font-medium">
+                        {new Date(b.billDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                      </span>
                       <button
                         type="button"
                         onClick={() => handlePrintBill(b._id)}
                         disabled={printLoadingId === b._id}
-                        className="inline-flex items-center justify-center p-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#034D28] border border-emerald-200 hover:border-emerald-300 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                        className="inline-flex items-center justify-center p-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#034D28] border border-emerald-200 rounded-lg min-h-[34px] min-w-[34px] cursor-pointer"
                         title={`Print Bill #${b.billNumberFormatted}`}
                       >
                         {printLoadingId === b._id ? (
@@ -287,12 +276,93 @@ export const Dashboard = () => {
                           <Printer className="w-3.5 h-3.5" />
                         )}
                       </button>
-                    </td>
+                    </div>
+                  </div>
+
+                  <div className="font-bold text-gray-900 text-sm">
+                    {b.customerName}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-200/80 text-xs">
+                    <div>
+                      <span className="text-gray-400 text-[10px] uppercase font-bold block">Bags / Kg</span>
+                      <span className="font-mono-num font-semibold text-gray-800">
+                        {b.totalBag} / {formatNumber(b.totalWeight)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-gray-400 text-[10px] uppercase font-bold block">Debit</span>
+                      <span className="font-mono-num font-black text-gray-950">
+                        ₹{formatCurrency(b.todayTotal !== undefined && b.todayTotal !== null ? b.todayTotal : b.totalDebit)}
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-gray-400 text-[10px] uppercase font-bold block">Closing</span>
+                      <span className="font-mono-num font-black text-[#034D28]">
+                        ₹{formatCurrency(b.closingBalance)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop View: Table */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-xs md:text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b text-gray-700 font-bold uppercase text-[11px]">
+                    <th className="py-2.5 px-3 text-left">Bill No</th>
+                    <th className="py-2.5 px-3 text-left">Customer</th>
+                    <th className="py-2.5 px-3 text-center">Bags</th>
+                    <th className="py-2.5 px-3 text-right">Weight (Kg)</th>
+                    <th className="py-2.5 px-3 text-right">Debit (₹)</th>
+                    <th className="py-2.5 px-3 text-right">Closing Bal (₹)</th>
+                    <th className="py-2.5 px-3 text-center w-14">Print</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {recentBills.map((b) => (
+                    <tr key={b._id} className="hover:bg-gray-50/70">
+                      <td className="py-2.5 px-3 font-mono-num font-bold text-[#034D28]">
+                        {b.billNumberFormatted}
+                      </td>
+                      <td className="py-2.5 px-3 font-bold text-gray-900">
+                        {b.customerName}
+                      </td>
+                      <td className="py-2.5 px-3 text-center font-mono-num">
+                        {b.totalBag}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono-num">
+                        {formatNumber(b.totalWeight)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono-num font-black text-gray-950">
+                        ₹{formatCurrency(b.todayTotal !== undefined && b.todayTotal !== null ? b.todayTotal : b.totalDebit)}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono-num font-extrabold text-[#034D28]">
+                        ₹{formatCurrency(b.closingBalance)}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handlePrintBill(b._id)}
+                          disabled={printLoadingId === b._id}
+                          className="inline-flex items-center justify-center p-1.5 bg-emerald-50 hover:bg-emerald-100 text-[#034D28] border border-emerald-200 hover:border-emerald-300 rounded-lg transition-all shadow-xs cursor-pointer active:scale-95 disabled:opacity-50"
+                          title={`Print Bill #${b.billNumberFormatted}`}
+                        >
+                          {printLoadingId === b._id ? (
+                            <span className="w-3.5 h-3.5 border-2 border-[#034D28] border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Printer className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

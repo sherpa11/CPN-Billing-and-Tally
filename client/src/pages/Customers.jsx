@@ -195,9 +195,9 @@ export const Customers = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by customer name, Tamil name, or mobile..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold focus:border-[#034D28] outline-none"
+            className="w-full min-h-[42px] pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold focus:border-[#034D28] outline-none"
           />
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
         </div>
       </div>
 
@@ -269,7 +269,7 @@ export const Customers = () => {
                 <button
                   type="button"
                   onClick={() => handleOpenLedger(cust)}
-                  className="px-3 py-1.5 bg-emerald-50 text-[#034D28] hover:bg-emerald-100 font-bold text-xs rounded-xl flex items-center gap-1 transition-colors"
+                  className="min-h-[38px] px-3.5 py-1.5 bg-emerald-50 text-[#034D28] hover:bg-emerald-100 font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   <FileText className="w-3.5 h-3.5" />
                   <span>Ledger</span>
@@ -278,7 +278,7 @@ export const Customers = () => {
                   <button
                     type="button"
                     onClick={() => handleReconcile(cust._id)}
-                    className="p-1.5 text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                    className="min-h-[38px] min-w-[38px] flex items-center justify-center text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-colors cursor-pointer"
                     title="Reconcile balance against transactions"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -286,7 +286,7 @@ export const Customers = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(cust)}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className="min-h-[38px] min-w-[38px] flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
                     title="Edit Customer"
                   >
                     <Edit2 className="w-4 h-4" />
@@ -294,7 +294,7 @@ export const Customers = () => {
                   <button
                     type="button"
                     onClick={() => setDeletingCustomer(cust)}
-                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                    className="min-h-[38px] min-w-[38px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors cursor-pointer"
                     title="Delete Customer"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -308,16 +308,16 @@ export const Customers = () => {
 
       {/* Add / Edit Customer Modal */}
       {isAddOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-200">
-            <div className="bg-[#034D28] text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+            <div className="bg-[#034D28] text-white px-5 py-4 flex items-center justify-between sticky top-0 z-10">
               <h3 className="font-bold text-base">
                 {editingCustomer ? 'Edit Customer' : 'Add New Customer'}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsAddOpen(false)}
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -334,7 +334,7 @@ export const Customers = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Murugan Traders"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold"
                 />
               </div>
 
@@ -347,11 +347,11 @@ export const Customers = () => {
                   value={formData.tamilName}
                   onChange={(e) => setFormData({ ...formData, tamilName: e.target.value })}
                   placeholder="e.g. முருகன் டிரேடர்ஸ்"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-tamil font-semibold"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-tamil font-semibold"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Phone / Mobile
@@ -361,7 +361,7 @@ export const Customers = () => {
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="98765 43210"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-semibold"
+                    className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-semibold"
                   />
                 </div>
                 <div>
@@ -374,7 +374,7 @@ export const Customers = () => {
                     value={formData.openingBalance}
                     onChange={(e) => setFormData({ ...formData, openingBalance: e.target.value })}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-semibold"
+                    className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-semibold"
                   />
                 </div>
               </div>
@@ -388,7 +388,7 @@ export const Customers = () => {
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="e.g. Stall 14, Gandhi Market, Dindigul"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold"
                 />
               </div>
 
@@ -396,13 +396,13 @@ export const Customers = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+                  className="min-h-[42px] px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#034D28] text-white font-bold rounded-xl hover:bg-[#02361c] shadow-md"
+                  className="min-h-[42px] px-5 py-2 bg-[#034D28] text-white font-bold rounded-xl hover:bg-[#02361c] shadow-md"
                 >
                   Save Customer
                 </button>
@@ -414,11 +414,11 @@ export const Customers = () => {
 
       {/* Customer Ledger Modal */}
       {ledgerCustomer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto border border-gray-200">
-            <div className="flex items-center justify-between border-b pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full p-4 sm:p-5 space-y-4 max-h-[92vh] overflow-y-auto border border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3">
               <div>
-                <h3 className="font-extrabold text-lg text-gray-900">
+                <h3 className="font-extrabold text-base sm:text-lg text-gray-900">
                   Customer Ledger: {ledgerCustomer.name}
                 </h3>
                 <p className="text-xs text-gray-500 font-medium">

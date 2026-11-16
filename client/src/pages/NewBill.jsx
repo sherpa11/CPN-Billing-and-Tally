@@ -473,7 +473,7 @@ export const NewBill = () => {
           <button
             type="button"
             onClick={handleReset}
-            className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all flex items-center justify-center gap-1.5"
+            className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer"
             title="Clear Form (Esc)"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -483,7 +483,7 @@ export const NewBill = () => {
             type="button"
             onClick={() => handleSubmitBill({ autoPrint: false })}
             disabled={loading}
-            className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-[#034D28] bg-emerald-100 hover:bg-emerald-200 rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-[#034D28] bg-emerald-100 hover:bg-emerald-200 rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] cursor-pointer"
           >
             <Save className="w-4 h-4" />
             <span>Save & New</span>
@@ -492,7 +492,7 @@ export const NewBill = () => {
             type="button"
             onClick={() => handleSubmitBill({ autoPrint: true })}
             disabled={loading}
-            className="flex-1 sm:flex-none px-5 py-2 text-xs font-black text-white bg-[#034D28] hover:bg-[#02361c] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="flex-1 sm:flex-none px-5 py-2 text-xs font-black text-white bg-[#034D28] hover:bg-[#02361c] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Save & Print</span>
@@ -562,9 +562,8 @@ export const NewBill = () => {
         </div>
       </div>
 
-      {/* Main Billing Table Card - Exact 5 Columns */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Desktop Table View */}
+      {/* Main Billing Table Card - Exact 5 Columns (Desktop View) */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
             <thead>
@@ -832,6 +831,211 @@ export const NewBill = () => {
               </tr>
             </tfoot>
           </table>
+        </div>
+      </div>
+
+      {/* Mobile Item Entry Cards & Mobile Summary (Visible strictly on screens < 768px) */}
+      <div className="md:hidden space-y-3">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+            Bill Items ({items.length})
+          </span>
+          <button
+            type="button"
+            onClick={handleAddRow}
+            className="flex items-center gap-1 px-3 py-1.5 bg-[#034D28] hover:bg-[#02361c] text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Row</span>
+          </button>
+        </div>
+
+        {items.map((row, idx) => (
+          <div
+            key={idx}
+            className="bg-white p-3.5 rounded-2xl shadow-sm border border-gray-200 space-y-2.5 focus-within:border-[#034D28] transition-colors"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-emerald-100 text-[#034D28] text-xs font-black flex items-center justify-center font-mono-num">
+                  {idx + 1}
+                </span>
+                {row.tamilName && (
+                  <span className="text-xs font-tamil font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    {row.tamilName}
+                  </span>
+                )}
+              </div>
+              {items.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteRow(idx)}
+                  className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg min-h-[32px] min-w-[32px] flex items-center justify-center cursor-pointer"
+                  title="Remove row"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Particulars (Vegetable Autocomplete) - Full Width on Mobile */}
+            <div>
+              <label className="text-[11px] font-bold text-gray-600 uppercase block mb-1">
+                பொருள் / Vegetable
+              </label>
+              <VegetableAutocomplete
+                value={row.particulars}
+                vegetables={vegetables}
+                onChange={(val) => {
+                  handleRowChange(idx, 'particulars', val);
+                  if (!val) {
+                    handleRowChange(idx, 'vegetable', null);
+                    handleRowChange(idx, 'tamilName', '');
+                  }
+                }}
+                onSelect={(veg) => handleSelectVegetableForRow(idx, veg)}
+                onOpenQuickAdd={(typed) => handleOpenQuickAdd(typed, idx)}
+              />
+            </div>
+
+            {/* Numeric Inputs Grid (Rate, Bag, Weight, Amount) */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
+                  விலை / Rate (₹)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={row.rate}
+                  onChange={(e) => handleRowChange(idx, 'rate', e.target.value)}
+                  placeholder="0.00"
+                  className="w-full text-center py-2 px-2.5 font-mono-num font-bold text-gray-900 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm min-h-[42px]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
+                  பை / Bag
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={row.bag}
+                  onChange={(e) => handleRowChange(idx, 'bag', e.target.value)}
+                  placeholder="0"
+                  className="w-full text-center py-2 px-2.5 font-mono-num font-bold text-gray-900 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm min-h-[42px]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1">
+                  எடை / Wt (Kg)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={row.weight}
+                  onChange={(e) => handleRowChange(idx, 'weight', e.target.value)}
+                  placeholder="0.00"
+                  className="w-full text-right py-2 px-2.5 font-mono-num font-bold text-gray-900 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm min-h-[42px]"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-[#034D28] uppercase block mb-1">
+                  தொகை / Amount
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={row.amount}
+                  onChange={(e) => handleRowChange(idx, 'amount', e.target.value)}
+                  placeholder="0.00"
+                  className="w-full text-right py-2 px-2.5 font-mono-num font-black text-[#034D28] border-2 border-emerald-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm bg-emerald-50/40 min-h-[42px]"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        <button
+          type="button"
+          onClick={handleAddRow}
+          className="w-full py-3 bg-white border border-[#034D28] text-[#034D28] hover:bg-emerald-50 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs min-h-[44px] cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          <span>+ Add Another Vegetable Row</span>
+        </button>
+
+        {/* Mobile Financial Summary Card */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-3">
+          <h3 className="font-black text-sm text-gray-900 uppercase tracking-wide border-b pb-2">
+            Bill Summary / பில் கணக்கு
+          </h3>
+
+          <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100">
+            <span className="font-bold text-gray-700">1. இன்றைய மொத்தம் (Today's Total)</span>
+            <span className="font-mono-num font-black text-gray-900 text-base">₹{formatCurrency(todayTotal)}</span>
+          </div>
+
+          <div className="space-y-1.5 py-1 border-b border-gray-100">
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-bold text-gray-700">2. முன் பாக்கி (Previous Balance)</span>
+              <span className="font-mono-num font-bold text-gray-800">₹{formatCurrency(parsedPrevBalance)}</span>
+            </div>
+            {previousBalanceDate && (
+              <div className="text-[11px] text-gray-500 font-mono-num text-right">
+                As of: {previousBalanceDate}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center text-sm py-2 px-3 bg-[#d1fae5] rounded-xl border border-emerald-300">
+            <span className="font-black text-[#034D28]">3. மொத்தம் (Total = Today + Prev)</span>
+            <span className="font-mono-num font-black text-[#034D28] text-base">₹{formatCurrency(total)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100 gap-2">
+            <span className="font-bold text-gray-700">4. தள்ளுபடி (Discount)</span>
+            <div className="w-32">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={discount}
+                onChange={(e) => setDiscount(e.target.value)}
+                placeholder="0.00"
+                className="w-full text-right py-1.5 px-2.5 font-mono-num font-bold text-amber-900 border-2 border-amber-300 rounded-lg outline-none text-sm bg-amber-50/50"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100 gap-2">
+            <span className="font-bold text-gray-700">5. வரவு (Cash Received)</span>
+            <div className="w-32">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={varavu}
+                onChange={(e) => {
+                  setVaravu(e.target.value);
+                  setCashReceived(e.target.value);
+                }}
+                placeholder="0.00"
+                className="w-full text-right py-1.5 px-2.5 font-mono-num font-bold text-emerald-800 border-2 border-emerald-400 rounded-lg outline-none text-sm bg-emerald-50/50"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center py-2.5 px-3 bg-[#d1fae5] rounded-xl border-2 border-[#034D28]">
+            <span className="font-black text-sm uppercase text-[#034D28]">6. இறுதி மொத்தம் (Closing)</span>
+            <span className="font-mono-num font-black text-[#034D28] text-lg">₹{formatCurrency(closingBalance)}</span>
+          </div>
         </div>
       </div>
 

@@ -151,10 +151,10 @@ export const CustomerAutocomplete = ({
           onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search customer by name or mobile..."
-          className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-2 focus:ring-[#034D28]/20 font-semibold text-gray-900 text-sm outline-none"
+          className="w-full min-h-[42px] pl-9 pr-4 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-2 focus:ring-[#034D28]/20 font-semibold text-gray-900 text-sm outline-none"
           autoComplete="off"
         />
-        <User className="w-4 h-4 text-gray-400 absolute left-3 top-3 pointer-events-none" />
+        <User className="w-4 h-4 text-gray-400 absolute left-3 top-3.5 pointer-events-none" />
       </div>
 
       {isOpen && (

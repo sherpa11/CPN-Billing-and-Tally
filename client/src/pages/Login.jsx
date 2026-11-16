@@ -128,9 +128,9 @@ export const Login = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
-                className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
+                className="w-full min-h-[44px] pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
               />
-              <User className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <User className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
             </div>
           </div>
 
@@ -146,13 +146,13 @@ export const Login = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
-                className="w-full pl-9 pr-10 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
+                className="w-full min-h-[44px] pl-9 pr-10 py-2.5 border border-gray-300 rounded-xl focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none text-sm font-semibold"
               />
-              <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+              <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer p-1"
                 title={showPassword ? 'Hide password' : 'Show password'}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
@@ -164,7 +164,7 @@ export const Login = () => {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-[#034D28] hover:bg-[#02361c] text-white font-black text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-98"
+            className="w-full min-h-[44px] py-3 bg-[#034D28] hover:bg-[#02361c] text-white font-black text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer active:scale-98"
           >
             <span>{submitting ? 'Signing in...' : 'Sign In'}</span>
             <ArrowRight className="w-4 h-4" />

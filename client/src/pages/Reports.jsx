@@ -227,7 +227,7 @@ export const Reports = () => {
       </div>
 
       {/* Tabs Navigation (Hidden in print) */}
-      <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-2 no-print">
+      <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-gray-200 flex overflow-x-auto no-scrollbar gap-2 pb-2 sm:flex-wrap no-print">
         {[
           { id: 'daily', label: '1. Daily Billing Report', icon: Calendar },
           { id: 'sales', label: '2. Date-wise Sales', icon: TrendingUp },
@@ -242,7 +242,7 @@ export const Reports = () => {
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex-shrink-0 min-h-[38px] ${
                 isActive
                   ? 'bg-[#034D28] text-white shadow-md border border-[#034D28] font-black'
                   : 'bg-emerald-50/80 text-[#034D28] border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 font-bold shadow-2xs'
@@ -264,12 +264,12 @@ export const Reports = () => {
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-mono-num font-bold focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none"
+              className="min-h-[38px] px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-mono-num font-bold focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none"
             />
             <button
               type="button"
               onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
-              className="px-2.5 py-1 text-xs font-bold text-[#034D28] bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 cursor-pointer"
+              className="min-h-[38px] px-3 py-1.5 text-xs font-bold text-[#034D28] bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 cursor-pointer"
             >
               Today
             </button>
@@ -291,14 +291,14 @@ export const Reports = () => {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-mono-num font-bold focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none"
+              className="min-h-[38px] px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-mono-num font-bold focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none"
             />
             <span className="text-gray-400 text-xs font-bold">to</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-mono-num font-bold focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none"
+              className="min-h-[38px] px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-mono-num font-bold focus:border-[#034D28] focus:ring-1 focus:ring-[#034D28] outline-none"
             />
           </div>
         )}
@@ -307,7 +307,7 @@ export const Reports = () => {
       {/* ========================================================================= */}
       {/* 3. REPORT CONTENT CARD                                                    */}
       {/* ========================================================================= */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 overflow-hidden report-card">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-5 overflow-hidden report-card">
         {loading ? (
           <div className="p-12 text-center text-gray-500 font-semibold animate-pulse">
             Loading report data...
@@ -315,9 +315,9 @@ export const Reports = () => {
         ) : activeTab === 'daily' ? (
           /* TAB 1: DAILY BILLING REPORT */
           <div className="space-y-4">
-            <div className="flex justify-between items-center border-b pb-3 no-print">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3 no-print">
               <div>
-                <h3 className="text-lg font-black text-gray-900">
+                <h3 className="text-base sm:text-lg font-black text-gray-900">
                   Daily Billing Report -{' '}
                   {dailyData?.reportDate
                     ? new Date(dailyData.reportDate).toLocaleDateString('en-IN', { dateStyle: 'long' })
@@ -344,7 +344,7 @@ export const Reports = () => {
                     }))
                   )
                 }
-                className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl flex items-center gap-1.5 cursor-pointer"
+                className="min-h-[38px] px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl flex items-center gap-1.5 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Export CSV</span>
@@ -352,26 +352,26 @@ export const Reports = () => {
             </div>
 
             {/* Daily Metrics Summary Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 report-summary-grid">
-              <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl report-summary-card">
-                <span className="text-[11px] font-bold text-emerald-800 uppercase block">Total Debit / Sales</span>
-                <span className="text-xl font-black font-mono-num text-[#034D28]">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 report-summary-grid">
+              <div className="p-2.5 sm:p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl report-summary-card">
+                <span className="text-[10px] sm:text-[11px] font-bold text-emerald-800 uppercase block">Total Debit / Sales</span>
+                <span className="text-base sm:text-xl font-black font-mono-num text-[#034D28]">
                   ₹{formatCurrency(dailySummary.totalDebit)}
                 </span>
               </div>
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl report-summary-card">
-                <span className="text-[11px] font-bold text-gray-600 uppercase block">Total Bags</span>
-                <span className="text-xl font-black font-mono-num text-gray-900">{dailySummary.totalBags}</span>
+              <div className="p-2.5 sm:p-3 bg-gray-50 border border-gray-200 rounded-xl report-summary-card">
+                <span className="text-[10px] sm:text-[11px] font-bold text-gray-600 uppercase block">Total Bags</span>
+                <span className="text-base sm:text-xl font-black font-mono-num text-gray-900">{dailySummary.totalBags}</span>
               </div>
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl report-summary-card">
-                <span className="text-[11px] font-bold text-gray-600 uppercase block">Total Weight (Kg)</span>
-                <span className="text-xl font-black font-mono-num text-gray-900">
+              <div className="p-2.5 sm:p-3 bg-gray-50 border border-gray-200 rounded-xl report-summary-card">
+                <span className="text-[10px] sm:text-[11px] font-bold text-gray-600 uppercase block">Total Weight (Kg)</span>
+                <span className="text-base sm:text-xl font-black font-mono-num text-gray-900">
                   {formatNumber(dailySummary.totalWeight)}
                 </span>
               </div>
-              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl report-summary-card">
-                <span className="text-[11px] font-bold text-amber-800 uppercase block">Total Cash Collected</span>
-                <span className="text-xl font-black font-mono-num text-amber-900">
+              <div className="p-2.5 sm:p-3 bg-amber-50/80 border border-amber-200 rounded-xl report-summary-card">
+                <span className="text-[10px] sm:text-[11px] font-bold text-amber-800 uppercase block">Total Cash Collected</span>
+                <span className="text-base sm:text-xl font-black font-mono-num text-amber-900">
                   ₹{formatCurrency(dailySummary.totalCashCollected)}
                 </span>
               </div>

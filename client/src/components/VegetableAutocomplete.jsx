@@ -174,7 +174,7 @@ export const VegetableAutocomplete = ({
       />
 
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1 w-full min-w-[280px] bg-white border-2 border-[#034D28] rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto">
+        <div className="absolute left-0 top-full mt-1 w-full bg-white border-2 border-[#034D28] rounded-xl shadow-2xl z-50 max-h-64 overflow-y-auto">
           {/* List of matching vegetables */}
           {filtered.length > 0 ? (
             filtered.map((veg, index) => (

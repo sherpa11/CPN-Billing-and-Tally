@@ -156,16 +156,16 @@ export const Vegetables = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search vegetable in English or Tamil..."
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold focus:border-[#034D28] outline-none"
+            className="w-full min-h-[42px] pl-9 pr-3 py-2 border border-gray-300 rounded-xl text-sm font-semibold focus:border-[#034D28] outline-none"
           />
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-3.5" />
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
             value={activeFilter}
             onChange={(e) => setActiveFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white"
+            className="w-full sm:w-auto min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white"
           >
             <option value="true">Active Only</option>
             <option value="all">All Vegetables</option>
@@ -184,7 +184,7 @@ export const Vegetables = () => {
           <p className="font-bold text-base text-gray-700">No vegetables found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3.5">
+        <div className="grid grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3.5">
           {vegetables.map((veg) => (
             <div
               key={veg._id}
@@ -201,7 +201,7 @@ export const Vegetables = () => {
                     type="button"
                     onClick={() => handleToggleActive(veg)}
                     title={veg.isActive ? 'Deactivate' : 'Activate'}
-                    className="p-0.5"
+                    className="p-1 min-w-[28px] min-h-[28px] flex items-center justify-center cursor-pointer"
                   >
                     {veg.isActive ? (
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -234,7 +234,7 @@ export const Vegetables = () => {
                   <button
                     type="button"
                     onClick={() => handleOpenEdit(veg)}
-                    className="p-1 hover:text-gray-700 hover:bg-gray-100 rounded"
+                    className="p-1.5 hover:text-gray-700 hover:bg-gray-100 rounded-lg min-w-[28px] min-h-[28px] flex items-center justify-center cursor-pointer"
                     title="Edit"
                   >
                     <Edit2 className="w-3.5 h-3.5" />
@@ -242,7 +242,7 @@ export const Vegetables = () => {
                   <button
                     type="button"
                     onClick={() => handleDelete(veg)}
-                    className="p-1 hover:text-red-600 hover:bg-red-50 rounded"
+                    className="p-1.5 hover:text-red-600 hover:bg-red-50 rounded-lg min-w-[28px] min-h-[28px] flex items-center justify-center cursor-pointer"
                     title="Delete"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -256,16 +256,16 @@ export const Vegetables = () => {
 
       {/* Add / Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-gray-200">
-            <div className="bg-[#034D28] text-white px-5 py-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-200">
+            <div className="bg-[#034D28] text-white px-5 py-4 flex items-center justify-between sticky top-0 z-10">
               <h3 className="font-bold text-base">
                 {editingVeg ? 'Edit Vegetable' : 'Add New Vegetable'}
               </h3>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-white/80 hover:text-white"
+                className="text-white/80 hover:text-white p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -282,7 +282,7 @@ export const Vegetables = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Cauliflower, Drumstick..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold"
                 />
               </div>
 
@@ -295,11 +295,11 @@ export const Vegetables = () => {
                   value={formData.tamilName}
                   onChange={(e) => setFormData({ ...formData, tamilName: e.target.value })}
                   placeholder="e.g. காலிஃபிளவர், முருங்கைக்காய்..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-tamil font-semibold"
+                  className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-tamil font-semibold"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
                     Default Rate (₹)
@@ -311,7 +311,7 @@ export const Vegetables = () => {
                     value={formData.defaultRate}
                     onChange={(e) => setFormData({ ...formData, defaultRate: e.target.value })}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-semibold"
+                    className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-mono-num font-semibold"
                   />
                 </div>
                 <div>
@@ -321,7 +321,7 @@ export const Vegetables = () => {
                   <select
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold bg-white"
+                    className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-xl focus:border-[#034D28] outline-none font-semibold bg-white"
                   >
                     <option value="Kg">Kg</option>
                     <option value="Bag">Bag (மூட்டை)</option>
@@ -336,13 +336,13 @@ export const Vegetables = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+                  className="min-h-[42px] px-4 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-[#034D28] text-white font-bold rounded-xl hover:bg-[#02361c] shadow-md"
+                  className="min-h-[42px] px-5 py-2 bg-[#034D28] text-white font-bold rounded-xl hover:bg-[#02361c] shadow-md"
                 >
                   Save Vegetable
                 </button>

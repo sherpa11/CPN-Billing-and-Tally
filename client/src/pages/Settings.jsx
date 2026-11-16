@@ -170,7 +170,7 @@ export const Settings = () => {
               required
               value={formData.shopName}
               onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm"
+              className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm"
             />
           </div>
 
@@ -182,7 +182,7 @@ export const Settings = () => {
               type="text"
               value={formData.tamilHeaderInvocation}
               onChange={(e) => setFormData({ ...formData, tamilHeaderInvocation: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm text-center"
+              className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm text-center"
             />
           </div>
         </div>
@@ -195,7 +195,7 @@ export const Settings = () => {
             type="text"
             value={formData.tamilHeaderDeity}
             onChange={(e) => setFormData({ ...formData, tamilHeaderDeity: e.target.value })}
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-bold focus:border-[#034D28] outline-none text-sm"
+            className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-bold focus:border-[#034D28] outline-none text-sm"
           />
         </div>
 
@@ -207,7 +207,7 @@ export const Settings = () => {
             type="text"
             value={formData.tamilBusinessDescription}
             onChange={(e) => setFormData({ ...formData, tamilBusinessDescription: e.target.value })}
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-bold focus:border-[#034D28] outline-none text-sm"
+            className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-bold focus:border-[#034D28] outline-none text-sm"
           />
         </div>
 
@@ -219,7 +219,7 @@ export const Settings = () => {
             type="text"
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-semibold focus:border-[#034D28] outline-none text-sm"
+            className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-semibold focus:border-[#034D28] outline-none text-sm"
           />
         </div>
 
@@ -233,7 +233,7 @@ export const Settings = () => {
               value={formData.contactNumbers}
               onChange={(e) => setFormData({ ...formData, contactNumbers: e.target.value })}
               placeholder="97152 67025, 97882 29090"
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-mono-num font-bold focus:border-[#034D28] outline-none text-sm"
+              className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-mono-num font-bold focus:border-[#034D28] outline-none text-sm"
             />
           </div>
 
@@ -245,7 +245,7 @@ export const Settings = () => {
               type="text"
               value={formData.footerText}
               onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-bold focus:border-[#034D28] outline-none text-sm"
+              className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-tamil font-bold focus:border-[#034D28] outline-none text-sm"
             />
           </div>
         </div>
@@ -260,7 +260,7 @@ export const Settings = () => {
               value={formData.billPrefix}
               onChange={(e) => setFormData({ ...formData, billPrefix: e.target.value.toUpperCase() })}
               placeholder="CPN"
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-mono-num font-bold focus:border-[#034D28] outline-none text-sm"
+              className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-mono-num font-bold focus:border-[#034D28] outline-none text-sm"
             />
           </div>
 
@@ -271,7 +271,7 @@ export const Settings = () => {
             <select
               value={formData.paperSize}
               onChange={(e) => setFormData({ ...formData, paperSize: e.target.value })}
-              className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm bg-white"
+              className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm bg-white"
             >
               <option value="A4">A4 (Standard Wholesale Sheet)</option>
               <option value="A5">A5 (Half Sheet)</option>
@@ -284,7 +284,7 @@ export const Settings = () => {
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 bg-[#034D28] hover:bg-[#02361c] text-white rounded-xl font-black text-sm shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
+            className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 bg-[#034D28] hover:bg-[#02361c] text-white rounded-xl font-black text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>{loading ? 'Saving...' : 'Save Settings'}</span>
