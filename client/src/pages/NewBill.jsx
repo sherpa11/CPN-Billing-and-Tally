@@ -32,6 +32,10 @@ const createEmptyRow = () => ({
   amount: '',
 });
 
+const DEFAULT_ROW_COUNT = 10;
+const createInitialRows = (count = DEFAULT_ROW_COUNT) =>
+  Array.from({ length: count }, createEmptyRow);
+
 export const NewBill = () => {
   const navigate = useNavigate();
   const { settings } = useSettings();
@@ -46,7 +50,7 @@ export const NewBill = () => {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [billDate, setBillDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [items, setItems] = useState([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
+  const [items, setItems] = useState(() => createInitialRows(DEFAULT_ROW_COUNT));
   const [previousBalance, setPreviousBalance] = useState(0);
   const [previousBalanceDate, setPreviousBalanceDate] = useState('');
   const [cashReceived, setCashReceived] = useState('');
@@ -306,7 +310,7 @@ export const NewBill = () => {
       setDiscount('');
       setVaravu('');
       setNotes('');
-      setItems([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
+      setItems(createInitialRows(DEFAULT_ROW_COUNT));
       setError('');
       setSuccessMsg('');
       api.get('/bills/next-number').then((res) => {
@@ -412,7 +416,7 @@ export const NewBill = () => {
           setDiscount('');
           setVaravu('');
           setNotes('');
-          setItems([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
+          setItems(createInitialRows(DEFAULT_ROW_COUNT));
           customerInputRef.current?.focus();
         }
 
@@ -439,7 +443,7 @@ export const NewBill = () => {
     setDiscount('');
     setVaravu('');
     setNotes('');
-    setItems([createEmptyRow(), createEmptyRow(), createEmptyRow()]);
+    setItems(createInitialRows(DEFAULT_ROW_COUNT));
     setTimeout(() => {
       customerInputRef.current?.focus();
     }, 100);

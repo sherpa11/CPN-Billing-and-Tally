@@ -123,6 +123,13 @@ export const PrintModal = ({
 
   if (!isOpen || !bill || !printMountNode) return null;
 
+  const rawItems = bill?.items || [];
+  const activeItems = rawItems.filter(
+    (it) => it.particulars?.trim() || Number(it.amount) > 0 || Number(it.rate) > 0
+  );
+  const itemCount = activeItems.length || 1;
+  const sheetCount = Math.max(1, Math.ceil(itemCount / 10));
+
   const modalContent = (
     <div className="print-modal-portal fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/75 backdrop-blur-xs">
       <div className="print-modal-container bg-white rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col max-h-[96vh] overflow-hidden border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
@@ -139,7 +146,7 @@ export const PrintModal = ({
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-[#034D28] border border-emerald-300 rounded-full text-[11px] font-black">
                   <CheckCircle2 className="w-3 h-3 text-[#034D28]" />
-                  A6 Sheet (1 Sheet Only)
+                  {sheetCount === 1 ? 'A6 Sheet (1 Sheet Only)' : `A6 Sheets (${sheetCount} Sheets)`}
                 </span>
               </div>
               <p className="text-xs text-gray-500 font-medium">

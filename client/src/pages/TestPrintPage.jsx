@@ -31,9 +31,17 @@ const mockVegetablesList = [
 export const TestPrintPage = () => {
   const [searchParams] = useSearchParams();
   const countParam = parseInt(searchParams.get('items') || '5', 10);
-  const itemCount = Math.min(mockVegetablesList.length, Math.max(1, countParam));
+  const itemCount = Math.max(1, countParam);
 
-  const items = mockVegetablesList.slice(0, itemCount);
+  const items = Array.from({ length: itemCount }, (_, idx) => {
+    const base = mockVegetablesList[idx % mockVegetablesList.length];
+    return {
+      ...base,
+      tamilName: idx >= mockVegetablesList.length ? `${base.tamilName} ${idx + 1}` : base.tamilName,
+      particulars: idx >= mockVegetablesList.length ? `${base.name} ${idx + 1}` : base.name,
+      amount: Math.round((base.rate * base.weight) * 100) / 100,
+    };
+  });
   const todayTotal = items.reduce((sum, it) => sum + it.amount, 0);
   const prevBalance = 2500;
   const total = todayTotal + prevBalance;

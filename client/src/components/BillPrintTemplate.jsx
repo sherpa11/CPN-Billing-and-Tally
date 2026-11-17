@@ -35,32 +35,18 @@ const formatNumber = (num, decimals = 2) => {
 const getAdaptiveOverlayLayout = (itemCount) => {
   if (itemCount <= 5) {
     return {
-      rowHeightPercent: 4.2,
+      rowHeightPercent: 4.4,
       fontSizeParticulars: 'text-[11px] leading-tight font-bold',
       fontSizeData: 'text-[11px] font-bold',
       lineHeight: 'leading-normal',
     };
-  } else if (itemCount <= 10) {
+  } else {
+    // 6 to 10 items
     return {
-      rowHeightPercent: 3.5,
+      rowHeightPercent: 4.3,
       fontSizeParticulars: 'text-[10px] leading-tight font-bold',
       fontSizeData: 'text-[10px] font-bold',
       lineHeight: 'leading-normal',
-    };
-  } else if (itemCount <= 15) {
-    return {
-      rowHeightPercent: 2.8,
-      fontSizeParticulars: 'text-[9px] leading-tight font-bold',
-      fontSizeData: 'text-[9px] font-semibold',
-      lineHeight: 'leading-snug',
-    };
-  } else {
-    // 16 to 20 items
-    return {
-      rowHeightPercent: 2.2,
-      fontSizeParticulars: 'text-[8px] leading-none font-bold',
-      fontSizeData: 'text-[8px] leading-none font-semibold',
-      lineHeight: 'leading-none',
     };
   }
 };
@@ -166,33 +152,17 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
       ? bill.closingBalance
       : Math.round((total - discount - varavu) * 100) / 100;
 
-  // Multi-page splitting logic for A6 (up to 20 items fit on 1 page)
-  const MAX_ITEMS_PAGE_1 = 15;
-  const isMultiPage = activeItems.length > 20;
+  // Multi-page splitting logic for A6 (10 items fit per page cleanly)
+  const ITEMS_PER_PAGE = 10;
+  const totalPages = Math.max(1, Math.ceil(activeItems.length / ITEMS_PER_PAGE));
   const pages = [];
 
-  if (!isMultiPage) {
+  for (let i = 0; i < totalPages; i++) {
     pages.push({
-      pageNumber: 1,
-      totalPages: 1,
-      items: activeItems,
-      isFinalPage: true,
-    });
-  } else {
-    // Chunk into 2 continuation pages
-    const page1Items = activeItems.slice(0, MAX_ITEMS_PAGE_1);
-    const page2Items = activeItems.slice(MAX_ITEMS_PAGE_1);
-    pages.push({
-      pageNumber: 1,
-      totalPages: 2,
-      items: page1Items,
-      isFinalPage: false,
-    });
-    pages.push({
-      pageNumber: 2,
-      totalPages: 2,
-      items: page2Items,
-      isFinalPage: true,
+      pageNumber: i + 1,
+      totalPages,
+      items: activeItems.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE),
+      isFinalPage: i === totalPages - 1,
     });
   }
 
@@ -207,7 +177,9 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
         return (
           <div
             key={`page-${pIdx}`}
-            className={`cpn-a6-bill select-none shadow-md ${!page.isFinalPage ? 'cpn-a6-bill-page-break' : ''}`}
+            className={`cpn-a6-bill select-none shadow-xl mb-6 last:mb-0 border border-gray-300 rounded-sm ${
+              !page.isFinalPage ? 'cpn-a6-bill-page-break' : ''
+            }`}
             style={{
               position: 'relative',
               width: '105mm',
@@ -268,7 +240,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 )}
                 {page.pageNumber > 1 && (
                   <span className="text-[8.5px] font-bold text-[#034D28] ml-2 flex-shrink-0">
-                    (தொடர்ச்சி)
+                    (தொடர்ச்சி - பக்கம் {page.pageNumber})
                   </span>
                 )}
               </div>
@@ -474,31 +446,46 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   </div>
                 </>
               ) : (
-                /* Multi-page continuation prompt on Page 1 */
+                /* Multi-page continuation prompt on non-final pages (100% solid white cover to completely block pre-printed summary rows) */
                 <div
-                  className="absolute flex items-center justify-between px-3 bg-white/95 border-t border-[#034D28]"
+                  className="absolute"
                   style={{
                     left: '1.54%',
                     top: '75.29%',
                     width: '96.92%',
                     height: '17.78%',
+                    backgroundColor: '#ffffff',
+                    zIndex: 10,
                   }}
                 >
-                  <span className="font-tamil font-black text-[9px] text-[#034D28]">
-                    தொடர்ச்சி அடுத்த பக்கம் 2-ல் பார்க்கவும் &gt;&gt;
-                  </span>
-                  <span className="font-mono-num font-bold text-[8px] text-[#034D28]">
-                    பக்கம் 1 / 2
-                  </span>
+                  <div
+                    className="w-full h-full flex flex-col justify-center items-center px-4 bg-emerald-50/90 border-2 border-[#034D28] rounded-md"
+                    style={{ boxSizing: 'border-box' }}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-1.5 font-tamil font-black text-[#034D28] text-[10.5px]">
+                        <span>தொடர்ச்சி அடுத்த பக்கம் {page.pageNumber + 1}-ல் பார்க்கவும்</span>
+                        <span className="text-[12px] font-bold">&gt;&gt;</span>
+                      </div>
+                      <div className="font-mono-num font-black text-[#034D28] text-[10px] bg-white px-2 py-0.5 rounded border border-[#034D28]">
+                        பக்கம் {page.pageNumber} / {page.totalPages}
+                      </div>
+                    </div>
+                    <div className="text-[8px] font-tamil text-gray-700 mt-1 text-center w-full">
+                      (மொத்த கணக்கு விவரம் இறுதி பக்கம் {page.totalPages}-ல் காண்க)
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Page indicator for multi-page bills (near footer) */}
+              {/* Page indicator for multi-page bills (inside footer line next to வாழ்க வளமுடன்) */}
               {page.totalPages > 1 && (
                 <div
-                  className="absolute right-2 flex items-center font-mono-num font-bold text-[#034D28] text-[7px]"
+                  className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[8px]"
                   style={{
-                    bottom: '1.5%',
+                    top: '94.0%',
+                    right: '3.5%',
+                    height: '3.0%',
                   }}
                 >
                   பக்கம் {page.pageNumber} / {page.totalPages}
