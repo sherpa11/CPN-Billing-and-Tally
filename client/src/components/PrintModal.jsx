@@ -6,9 +6,7 @@ import {
   CheckCircle2,
   Loader2,
   ChevronDown,
-  Monitor,
   ImageDown,
-  Download,
 } from 'lucide-react';
 import { toBlob, toPng } from 'html-to-image';
 import api from '../api/axios';
@@ -21,8 +19,8 @@ import LegacyBillPrintTemplate from './LegacyBillPrintTemplate';
  * 1. Mounts via React Portal into #print-root (outside #root).
  * 2. Adds 'print-bill-active' to document.body and injects A5 @page rule.
  * 3. Enforces A5 sheet layout (148mm × 210mm) and guarantees ONLY the bill prints.
- * 4. Provides a unified print menu: Direct to Canon G3030, Browser Print Preview,
- *    Download Bill Image (One-Click PNG at 3x scale), and Download PDF.
+ * 4. Provides a unified print menu: Direct to Canon G3030 and
+ *    Download Bill Image (One-Click PNG at 3x scale).
  */
 export const PrintModal = ({
   isOpen,
@@ -184,13 +182,7 @@ export const PrintModal = ({
     }
   };
 
-  // 2. Browser Print Preview
-  const handleBrowserPrint = () => {
-    setShowOptions(false);
-    window.print();
-  };
-
-  // 3. One-Click Download Bill Image (High-Resolution PNG at 3x Scale)
+  // 2. One-Click Download Bill Image (High-Resolution PNG at 3x Scale)
   const handleDownloadImage = async () => {
     setShowOptions(false);
     setIsDownloadingImage(true);
@@ -378,20 +370,6 @@ export const PrintModal = ({
     }
   };
 
-  // 4. Download PDF Option (A5 Format via Browser Print Engine)
-  const handleDownloadPdf = () => {
-    setShowOptions(false);
-    const origTitle = document.title;
-    const billNum = bill?.billNumberFormatted || (bill?.billNumber ? `CPN-${String(bill.billNumber).padStart(4, '0')}` : 'Bill');
-    const custName = (bill?.customerName || bill?.customer?.name || 'Customer').trim().replace(/[\/\s]+/g, '_');
-    const dateStr = bill?.billDate ? new Date(bill.billDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
-    document.title = `${billNum}_${custName}_${dateStr}`;
-    window.print();
-    setTimeout(() => {
-      document.title = origTitle;
-    }, 2000);
-  };
-
   if (!isOpen || !bill || !printMountNode) return null;
 
   const rawItems = bill?.items || [];
@@ -492,20 +470,7 @@ export const PrintModal = ({
                     </div>
                   </button>
 
-                  {/* 2. Browser Print Preview */}
-                  <button
-                    type="button"
-                    onClick={handleBrowserPrint}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-100 flex items-center gap-2.5 cursor-pointer transition-colors"
-                  >
-                    <Monitor className="w-4 h-4 text-gray-600" />
-                    <div>
-                      <div className="font-extrabold text-gray-900">Browser Print Preview</div>
-                      <div className="text-[10px] text-gray-400 font-normal">Chrome print dialog fallback</div>
-                    </div>
-                  </button>
-
-                  {/* 3. Download Bill Image */}
+                  {/* 2. Download Bill Image */}
                   <button
                     type="button"
                     onClick={handleDownloadImage}
@@ -522,21 +487,6 @@ export const PrintModal = ({
                       <div className="text-[10px] text-gray-400 font-normal">
                         {isDownloadingImage ? 'Generating PNG...' : 'High-resolution PNG (A5)'}
                       </div>
-                    </div>
-                  </button>
-
-                  <div className="my-1 border-t border-gray-100" />
-
-                  {/* 4. Download PDF */}
-                  <button
-                    type="button"
-                    onClick={handleDownloadPdf}
-                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-100 flex items-center gap-2.5 cursor-pointer transition-colors"
-                  >
-                    <Download className="w-4 h-4 text-amber-600" />
-                    <div>
-                      <div className="font-extrabold text-gray-900">Download PDF</div>
-                      <div className="text-[10px] text-gray-400 font-normal">Save as A5 PDF via print</div>
                     </div>
                   </button>
                 </div>
@@ -577,7 +527,7 @@ export const PrintModal = ({
         {/* Modal Footer Controls (Hidden during print) */}
         <div className="no-print px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-white">
           <span>
-            Press <strong>Ctrl + P</strong> to print, or use the menu to <strong>Download Bill Image (PNG)</strong> or <strong>PDF</strong>.
+            Press <strong>Ctrl + P</strong> to print, or use the menu to <strong>Download Bill Image (PNG)</strong>.
           </span>
           <button
             type="button"
