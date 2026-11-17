@@ -427,6 +427,16 @@ const updateBill = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cancelled bills cannot be edited' });
     }
 
+    // Concurrency / optimistic locking check
+    if (req.body.version !== undefined && bill.version !== undefined) {
+      if (Number(req.body.version) !== Number(bill.version)) {
+        return res.status(409).json({
+          success: false,
+          message: 'This bill has been modified in another session. Please refresh and try again.',
+        });
+      }
+    }
+
     const customer = await Customer.findById(bill.customer);
     if (!customer) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
@@ -519,8 +529,60 @@ const updateBill = async (req, res) => {
     bill.notes = notes !== undefined ? notes : bill.notes;
     bill.version = (bill.version || 1) + 1;
 
-    customer.currentBalance = round2((customer.currentBalance || 0) + balanceDiff);
-    await Promise.all([bill.save(), customer.save()]);
+    await bill.save();
+
+    // Chronologically recalculate subsequent bills for this customer if any exist
+    const subsequentBills = await Bill.find({
+      customer: customer._id,
+      status: 'active',
+      $or: [
+        { billDate: { $gt: bill.billDate } },
+        { billDate: bill.billDate, billNumber: { $gt: bill.billNumber } },
+        { billDate: bill.billDate, _id: { $ne: bill._id }, createdAt: { $gt: bill.createdAt } },
+      ],
+    }).sort({ billDate: 1, billNumber: 1, createdAt: 1 });
+
+    if (subsequentBills.length > 0) {
+      let runningPrevBalance = closingBalance;
+      let lastBillDate = bill.billDate;
+
+      for (const subBill of subsequentBills) {
+        // Find any standalone payments made by this customer between lastBillDate and subBill.billDate
+        const standalonePayments = await Payment.find({
+          customer: customer._id,
+          status: 'active',
+          bill: null,
+          paymentDate: { $gt: lastBillDate, $lte: subBill.billDate },
+        });
+        const intermediateVaravu = standalonePayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+        runningPrevBalance = round2(runningPrevBalance - intermediateVaravu);
+
+        subBill.previousBalance = runningPrevBalance;
+        subBill.previousBalanceDate = lastBillDate;
+        subBill.grandTotal = round2(subBill.todayTotal + runningPrevBalance);
+        subBill.closingBalance = round2(
+          subBill.grandTotal - (subBill.discount || 0) - (subBill.varavu || 0)
+        );
+        await subBill.save();
+
+        runningPrevBalance = subBill.closingBalance;
+        lastBillDate = subBill.billDate;
+      }
+
+      // Check any standalone payments after the last subsequent bill
+      const trailingPayments = await Payment.find({
+        customer: customer._id,
+        status: 'active',
+        bill: null,
+        paymentDate: { $gt: lastBillDate },
+      });
+      const trailingVaravu = trailingPayments.reduce((acc, p) => acc + (p.amount || 0), 0);
+      customer.currentBalance = round2(runningPrevBalance - trailingVaravu);
+    } else {
+      customer.currentBalance = round2((customer.currentBalance || 0) + balanceDiff);
+    }
+
+    await customer.save();
 
     // Update or create linked payment
     const linkedPayment = await Payment.findOne({ bill: bill._id });
@@ -556,8 +618,47 @@ const updateBill = async (req, res) => {
       entityType: 'bill',
       entityId: bill._id.toString(),
       performedBy: req.user ? req.user.username : 'admin',
-      previousState: previousBillState,
-      newState: bill.toObject(),
+      previousState: {
+        billNumber: previousBillState.billNumber,
+        billNumberFormatted: previousBillState.billNumberFormatted,
+        billDate: previousBillState.billDate,
+        customerName: previousBillState.customerName,
+        todayTotal: previousBillState.todayTotal,
+        grandTotal: previousBillState.grandTotal,
+        closingBalance: previousBillState.closingBalance,
+        discount: previousBillState.discount,
+        varavu: previousBillState.varavu,
+        itemCount: previousBillState.items?.length,
+        items: (previousBillState.items || []).map((i) => ({
+          particulars: i.particulars,
+          tamilName: i.tamilName,
+          rate: i.rate,
+          bag: i.bag,
+          weight: i.weight,
+          amount: i.amount,
+        })),
+      },
+      newState: {
+        billNumber: bill.billNumber,
+        billNumberFormatted: bill.billNumberFormatted,
+        billDate: bill.billDate,
+        customerName: bill.customerName,
+        todayTotal: bill.todayTotal,
+        grandTotal: bill.grandTotal,
+        closingBalance: bill.closingBalance,
+        discount: bill.discount,
+        varavu: bill.varavu,
+        balanceDiff,
+        itemCount: bill.items?.length,
+        items: bill.items.map((i) => ({
+          particulars: i.particulars,
+          tamilName: i.tamilName,
+          rate: i.rate,
+          bag: i.bag,
+          weight: i.weight,
+          amount: i.amount,
+        })),
+      },
     }).catch((err) => console.warn('[Bill] Audit log notice:', err.message));
 
     res.json({

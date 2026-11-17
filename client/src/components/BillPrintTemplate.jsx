@@ -167,7 +167,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
   }
 
   // Table body start and end Y coordinates as percentages of 1024px canvas
-  const TABLE_TOP_PERCENT = 30.86; // Y = 316px (bottom of header row)
+  const TABLE_TOP_PERCENT = 30.10; // Y = 308px (immediately below table header line)
 
   return (
     <div id="printable-bill" style={{ margin: 0, padding: 0 }}>
@@ -221,14 +221,14 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 height: '100%',
               }}
             >
-              {/* 1. CUSTOMER NAME (on திரு: underline) */}
+              {/* 1. CUSTOMER NAME (on திரு: underline - X=77..446, Y=250) */}
               <div
                 className="absolute flex items-center font-bold text-gray-950 font-tamil text-[10px] truncate pl-0.5 pr-2"
                 style={{
-                  left: '9.8%',
-                  top: '22.8%',
-                  width: '58.0%',
-                  height: '3.2%',
+                  left: '10.8%',
+                  top: '21.6%',
+                  width: '51.8%',
+                  height: '2.8%',
                 }}
                 title={bill.customerName || bill.customer?.name}
               >
@@ -245,20 +245,20 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 )}
               </div>
 
-              {/* 3. DATE (on தேதி : underline) */}
+              {/* 2. DATE (on தேதி : underline - X=551..684, Y=250) */}
               <div
                 className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[10px]"
                 style={{
-                  left: '75.2%',
-                  top: '22.8%',
-                  width: '22.5%',
-                  height: '3.2%',
+                  left: '77.0%',
+                  top: '21.6%',
+                  width: '19.0%',
+                  height: '2.8%',
                 }}
               >
                 {formatDate(bill.billDate)}
               </div>
 
-              {/* 4. VEGETABLE ENTRIES (inside 5-column table body) */}
+              {/* 3. VEGETABLE ENTRIES (inside 5-column table body) */}
               {page.items.map((item, idx) => {
                 const itemAmount =
                   item.amount !== undefined && item.amount !== null
@@ -281,51 +281,51 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Col 1: விலை (Rate) - 1.54% to 14.75% */}
+                    {/* Col 1: விலை (Rate) - 1.69% to 15.73% */}
                     <div
                       className={`flex items-center justify-center font-mono-num font-bold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '1.54%',
-                        width: '13.20%',
+                        left: '1.69%',
+                        width: '14.04%',
                         height: '100%',
                       }}
                     >
                       {item.rate > 0 ? formatNumber(item.rate) : ''}
                     </div>
 
-                    {/* Col 2: பொருள் (Particulars - Tamil Name) - 14.75% to 50.98% */}
+                    {/* Col 2: பொருள் (Particulars - Tamil Name) - 15.73% to 51.26% */}
                     <div
                       className={`flex items-center text-left pl-2 pr-1 font-tamil font-bold text-gray-950 truncate ${layout.fontSizeParticulars}`}
                       style={{
                         position: 'absolute',
-                        left: '14.75%',
-                        width: '36.24%',
+                        left: '15.73%',
+                        width: '35.53%',
                         height: '100%',
                       }}
                     >
                       <span className="truncate">{getVegetableDisplayName(item)}</span>
                     </div>
 
-                    {/* Col 3: பை (Bag) - 50.98% to 61.66% */}
+                    {/* Col 3: பை (Bag) - 51.26% to 61.80% */}
                     <div
                       className={`flex items-center justify-center font-mono-num font-bold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '50.98%',
-                        width: '10.67%',
+                        left: '51.26%',
+                        width: '10.54%',
                         height: '100%',
                       }}
                     >
                       {item.bag > 0 ? item.bag : ''}
                     </div>
 
-                    {/* Col 4: எடை (Weight) - 61.66% to 74.58% */}
+                    {/* Col 4: எடை (Weight) - 61.80% to 74.72% */}
                     <div
                       className={`flex items-center justify-end pr-2 font-mono-num font-semibold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '61.66%',
+                        left: '61.80%',
                         width: '12.92%',
                         height: '100%',
                       }}
@@ -333,13 +333,13 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       {item.weight > 0 ? formatNumber(item.weight) : ''}
                     </div>
 
-                    {/* Col 5: தொகை (Amount) - 74.58% to 98.46% */}
+                    {/* Col 5: தொகை (Amount) - 74.72% to 98.31% */}
                     <div
                       className={`flex items-center justify-end pr-3 font-mono-num font-black text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '74.58%',
-                        width: '23.88%',
+                        left: '74.72%',
+                        width: '23.59%',
                         height: '100%',
                       }}
                     >
@@ -349,30 +349,30 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 );
               })}
 
-              {/* 5. SUMMARY SECTION AMOUNTS (mapped into the blank amount cells) */}
+              {/* 4. SUMMARY SECTION AMOUNTS (mapped into the blank amount cells) */}
               {page.isFinalPage ? (
                 <>
-                  {/* Row 1: இன்றைய மொத்தம் (Today's Total) Amount - Y=771..804px (75.29%..78.52%) */}
+                  {/* Row 1: இன்றைய மொத்தம் (Today's Total) Amount - Y=778..808px (75.98%..78.91%) */}
                   <div
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[10px]"
                     style={{
-                      left: '66.43%',
-                      top: '75.29%',
-                      width: '32.03%',
-                      height: '3.22%',
+                      left: '66.57%',
+                      top: '75.98%',
+                      width: '31.74%',
+                      height: '2.93%',
                     }}
                   >
                     {formatCurrency(todayTotal)}
                   </div>
 
-                  {/* Row 2: முன் பாக்கி Date on underline - X=305..440px (42.84%..61.80%) */}
+                  {/* Row 2: முன் பாக்கி Date on underline - X=260..448px (36.52%..62.92%), Y=808..838px */}
                   <div
                     className="absolute flex items-center justify-center font-mono-num font-bold text-[#034D28] text-[8.5px]"
                     style={{
-                      left: '42.84%',
-                      top: '78.52%',
-                      width: '18.96%',
-                      height: '3.22%',
+                      left: '36.52%',
+                      top: '78.91%',
+                      width: '26.40%',
+                      height: '2.93%',
                     }}
                   >
                     {previousBalanceDateFormatted}
@@ -382,23 +382,23 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   <div
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[10px]"
                     style={{
-                      left: '66.43%',
-                      top: '78.52%',
-                      width: '32.03%',
-                      height: '3.22%',
+                      left: '66.57%',
+                      top: '78.91%',
+                      width: '31.74%',
+                      height: '2.93%',
                     }}
                   >
                     {formatCurrency(previousBalance)}
                   </div>
 
-                  {/* Row 3: மொத்தம் (Total) Amount */}
+                  {/* Row 3: மொத்தம் (Total) Amount - Y=838..872px (81.84%..85.16%) */}
                   <div
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[10.5px]"
                     style={{
-                      left: '66.43%',
-                      top: '81.74%',
-                      width: '32.03%',
-                      height: '3.42%',
+                      left: '66.57%',
+                      top: '81.84%',
+                      width: '31.74%',
+                      height: '3.32%',
                     }}
                   >
                     {formatCurrency(total)}
@@ -409,37 +409,37 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     <div
                       className="absolute flex items-center justify-end pr-1 font-mono-num font-bold text-amber-900 text-[7.5px] whitespace-nowrap"
                       style={{
-                        left: '44.5%',
+                        left: '42.0%',
                         top: '85.16%',
-                        width: '21.5%',
-                        height: '3.42%',
+                        width: '24.0%',
+                        height: '3.52%',
                       }}
                     >
                       (தள்ளுபடி: {formatCurrency(discount)})
                     </div>
                   )}
 
-                  {/* Row 4: ரொக்கம் பெற்றது / வரவு (Cash Received) Amount */}
+                  {/* Row 4: ரொக்கம் பெற்றது / வரவு (Cash Received) Amount - Y=872..908px (85.16%..88.67%) */}
                   <div
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[10px]"
                     style={{
-                      left: '66.43%',
+                      left: '66.57%',
                       top: '85.16%',
-                      width: '32.03%',
-                      height: '3.42%',
+                      width: '31.74%',
+                      height: '3.52%',
                     }}
                   >
                     {varavu > 0 ? formatCurrency(varavu) : '0.00'}
                   </div>
 
-                  {/* Row 5: இறுதி மொத்தம் / மொத்த பாக்கி (Closing Balance) Amount */}
+                  {/* Row 5: இறுதி மொத்தம் / மொத்த பாக்கி (Closing Balance) Amount - Y=908..948px (88.67%..92.58%) */}
                   <div
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[11px]"
                     style={{
-                      left: '66.43%',
-                      top: '88.57%',
-                      width: '32.03%',
-                      height: '4.50%',
+                      left: '66.57%',
+                      top: '88.67%',
+                      width: '31.74%',
+                      height: '3.91%',
                     }}
                   >
                     {formatCurrency(closingBalance)}
@@ -450,10 +450,10 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 <div
                   className="absolute"
                   style={{
-                    left: '1.54%',
-                    top: '75.29%',
-                    width: '96.92%',
-                    height: '17.78%',
+                    left: '1.69%',
+                    top: '75.98%',
+                    width: '96.62%',
+                    height: '16.60%',
                     backgroundColor: '#ffffff',
                     zIndex: 10,
                   }}
@@ -483,9 +483,9 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 <div
                   className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[8px]"
                   style={{
-                    top: '94.0%',
+                    top: '93.5%',
                     right: '3.5%',
-                    height: '3.0%',
+                    height: '2.8%',
                   }}
                 >
                   பக்கம் {page.pageNumber} / {page.totalPages}

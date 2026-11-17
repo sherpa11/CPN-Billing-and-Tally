@@ -327,6 +327,7 @@ const runE2E = async () => {
       body: bill2Payload,
     });
     test('Billing: Bill #2 created with ₹500 discount and ₹2,000 cash', createBill2Res.status === 201);
+    const bill2Id = createBill2Res.data?.data?._id;
 
     // D6. Verify Customer current balance updated to ₹11,500
     const custAfterBill2 = await request(`/customers/${testCustomerId}`);
@@ -415,6 +416,100 @@ const runE2E = async () => {
     const activeCustList = await request('/customers?activeOnly=true');
     const isExcluded = !activeCustList.data.data.some((c) => c._id === tempCustId);
     test('Customers: Deleted customer excluded from active lists', isExcluded);
+
+    // -------------------------------------------------------------------------
+    // WORKFLOW H: BILL EDITING, LEDGER CASCADING & CONCURRENCY
+    // -------------------------------------------------------------------------
+    console.log('\n--- Workflow H: Bill Editing, Ledger Cascading & Concurrency ---');
+
+    // H1. Edit existing Bill #1: Add another item and adjust cash received
+    // Bill #1 originally had: todayTotal=12000, prev=3000, grand=15000, varavu=5000, closing=10000.
+    // Bill #2 originally had: prev=10000, today=4000, discount=500, varavu=2000, grand=14000, closing=11500.
+    // After standalone payment of 1500, customer balance became 10000.
+    const originalBill1 = printBillRes.data.data;
+    const editBillRes = await request(`/bills/${bill1Id}`, {
+      method: 'PUT',
+      body: {
+        billDate: originalBill1.billDate,
+        items: [
+          ...originalBill1.items,
+          {
+            vegetable: createdVegId,
+            particulars: 'தக்காளி நாடன்',
+            tamilName: 'தக்காளி நாடன்',
+            rate: 40,
+            bag: 2,
+            weight: 25,
+            amount: 1000,
+          },
+        ],
+        discount: 0,
+        varavu: 5000,
+        version: originalBill1.version || 1,
+      },
+    });
+
+    test(
+      'Billing: HTTP PUT /bills/:id updates existing bill with HTTP 200',
+      editBillRes.status === 200 && editBillRes.data.success
+    );
+
+    test(
+      'Billing: Original bill number strictly preserved across edit',
+      editBillRes.data.data.billNumber === originalBill1.billNumber &&
+        editBillRes.data.data.billNumberFormatted === originalBill1.billNumberFormatted
+    );
+
+    // New todayTotal = 12000 + 1000 = 13000. Grand = 13000 + 3000 = 16000. Closing = 16000 - 5000 = 11000.
+    test(
+      'Billing: Totals recalculated accurately (Today ₹13,000, Closing ₹11,000)',
+      editBillRes.data.data.todayTotal === 13000 &&
+        editBillRes.data.data.closingBalance === 11000
+    );
+
+    // H2. Verify cascading update to subsequent Bill #2
+    const subBillRes = await request(`/bills/${bill2Id}`);
+    test(
+      'Accounting: Subsequent Bill #2 previous balance cascaded to ₹11,000',
+      subBillRes.data.data.previousBalance === 11000 &&
+        subBillRes.data.data.closingBalance === 12500 // (11000 + 4000) - 500 - 2000 = 12500
+    );
+
+    // H3. Verify customer current balance reflects the cascading change and standalone payment
+    // 12500 - standalone payment (1500) = 11000
+    const finalCustCheck = await request(`/customers/${testCustomerId}`);
+    test(
+      'Accounting: Customer balance accurately cascaded to ₹11,000 (+₹1,000 difference)',
+      finalCustCheck.data.data.currentBalance === 11000
+    );
+
+    // H4. Optimistic locking: submitting stale version must return 409 Conflict
+    const staleEditRes = await request(`/bills/${bill1Id}`, {
+      method: 'PUT',
+      body: {
+        items: editBillRes.data.data.items,
+        version: 1, // outdated, version is now 2
+      },
+    });
+    test(
+      'Concurrency: Optimistic locking rejects stale version with HTTP 409',
+      staleEditRes.status === 409
+    );
+
+    // H5. Cancelled bill editing rejection
+    // Cancel Bill #1 and attempt editing
+    await request(`/bills/${bill1Id}/cancel`, {
+      method: 'POST',
+      body: { reason: 'Test cancellation' },
+    });
+    const editCancelledRes = await request(`/bills/${bill1Id}`, {
+      method: 'PUT',
+      body: { items: editBillRes.data.data.items },
+    });
+    test(
+      'Safeguard: Editing cancelled bill rejected with HTTP 400',
+      editCancelledRes.status === 400
+    );
 
     // -------------------------------------------------------------------------
     // RESULTS & CLEANUP

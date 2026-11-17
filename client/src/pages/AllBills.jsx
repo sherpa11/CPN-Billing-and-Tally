@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Receipt,
   Search,
@@ -10,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   RotateCcw,
+  Edit2,
 } from 'lucide-react';
 import api from '../api/axios';
 import { useSettings } from '../context/SettingsContext';
@@ -18,6 +20,7 @@ import { formatCurrency, formatNumber } from '../utils/math';
 import PrintModal from '../components/PrintModal';
 
 export const AllBills = () => {
+  const navigate = useNavigate();
   const { settings } = useSettings();
   const [bills, setBills] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -242,6 +245,17 @@ export const AllBills = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5">
+                      {bill.status !== 'cancelled' && (
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/new-bill?edit=${bill._id}`)}
+                          className="min-h-[40px] px-3 bg-blue-100 text-blue-800 hover:bg-blue-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title="Edit Bill / பில் திருத்துதல்"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handlePrintBill(bill)}
@@ -372,6 +386,16 @@ export const AllBills = () => {
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1.5">
+                          {bill.status !== 'cancelled' && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/new-bill?edit=${bill._id}`)}
+                              className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+                              title="Edit Bill / பில் திருத்துதல்"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handlePrintBill(bill)}

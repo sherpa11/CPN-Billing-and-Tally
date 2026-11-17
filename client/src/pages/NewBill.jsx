@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Plus,
   Trash2,
@@ -12,6 +12,8 @@ import {
   Sparkles,
   Calendar,
   UserCheck,
+  Edit2,
+  ArrowLeft,
 } from 'lucide-react';
 import api from '../api/axios';
 import { appCache } from '../services/cache';
@@ -38,6 +40,9 @@ const createInitialRows = (count = DEFAULT_ROW_COUNT) =>
 
 export const NewBill = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editBillId = searchParams.get('edit');
+  const isEditMode = Boolean(editBillId);
   const { settings } = useSettings();
 
   // Master lists
@@ -57,6 +62,10 @@ export const NewBill = () => {
   const [discount, setDiscount] = useState('');
   const [varavu, setVaravu] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Editing state
+  const [editingBill, setEditingBill] = useState(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   // UI States
   const [loading, setLoading] = useState(false);
@@ -109,6 +118,86 @@ export const NewBill = () => {
     };
     loadData();
   }, []);
+
+  // Load existing bill for editing if edit query parameter is present
+  useEffect(() => {
+    if (!editBillId) {
+      setEditingBill(null);
+      return;
+    }
+
+    const loadBillForEditing = async () => {
+      try {
+        setEditLoading(true);
+        setError('');
+        const res = await api.get(`/bills/${editBillId}`);
+        if (!res.success || !res.data) {
+          setError('Could not find the requested bill to edit.');
+          return;
+        }
+        const b = res.data;
+        if (b.status === 'cancelled') {
+          setError(`Bill #${b.billNumberFormatted || b.billNumber} is cancelled and cannot be edited.`);
+          return;
+        }
+
+        setEditingBill(b);
+        const cName = b.customerName || (b.customer && b.customer.name) || '';
+        const cPhone = b.customerPhone || (b.customer && b.customer.phone) || '';
+        setCustomerName(cName);
+        setCustomerPhone(cPhone);
+        setSelectedCustomer(
+          b.customer && typeof b.customer === 'object'
+            ? b.customer
+            : { _id: b.customer, name: cName, phone: cPhone }
+        );
+
+        if (b.billDate) {
+          setBillDate(new Date(b.billDate).toISOString().split('T')[0]);
+        }
+        setPreviousBalance(round2(b.previousBalance || 0));
+        if (b.previousBalanceDate) {
+          setPreviousBalanceDate(new Date(b.previousBalanceDate).toISOString().split('T')[0]);
+        } else {
+          setPreviousBalanceDate('');
+        }
+        setDiscount(b.discount > 0 ? String(b.discount) : '');
+        const effectiveVaravu = b.varavu !== undefined && b.varavu !== null ? b.varavu : b.cashReceived;
+        setVaravu(effectiveVaravu > 0 ? String(effectiveVaravu) : '');
+        setCashReceived(effectiveVaravu > 0 ? String(effectiveVaravu) : '');
+        setNotes(b.notes || '');
+
+        // Map items
+        const rawItems = Array.isArray(b.items) ? b.items : [];
+        const populated = rawItems.map((it) => {
+          const vegId = it.vegetable ? (typeof it.vegetable === 'object' ? it.vegetable._id : it.vegetable) : null;
+          const vegName = it.particulars || (it.vegetable && typeof it.vegetable === 'object' ? it.vegetable.name : '') || '';
+          const tamil = it.tamilName || (it.vegetable && typeof it.vegetable === 'object' ? it.vegetable.tamilName : '') || '';
+          return {
+            vegetable: vegId,
+            particulars: vegName,
+            tamilName: tamil,
+            rate: it.rate !== undefined && it.rate !== null && it.rate !== '' ? String(it.rate) : '',
+            bag: it.bag !== undefined && it.bag !== null && it.bag !== '' ? String(it.bag) : '',
+            weight: it.weight !== undefined && it.weight !== null && it.weight !== '' ? String(it.weight) : '',
+            amount: it.amount !== undefined && it.amount !== null && it.amount !== '' ? it.amount : (it.debit || ''),
+          };
+        });
+
+        // Provide at least 10 rows (or existing items + 1 empty row)
+        const padRows = Math.max(10 - populated.length, 1);
+        const padded = [...populated, ...Array.from({ length: padRows }, createEmptyRow)];
+        setItems(padded);
+      } catch (err) {
+        console.error('Error fetching bill for edit:', err);
+        setError(err.message || 'Failed to load bill details for editing');
+      } finally {
+        setEditLoading(false);
+      }
+    };
+
+    loadBillForEditing();
+  }, [editBillId]);
 
   // When customer changes, automatically update Previous Balance & its Date instantly
   const handleSelectCustomer = (cust) => {
@@ -356,71 +445,105 @@ export const NewBill = () => {
       setLoading(true);
       setError('');
 
-      const billPayload = {
-        customerId: selectedCustomer?._id || null,
-        customerName: finalCustName,
-        customerPhone: customerPhone.trim(),
-        billDate,
-        items: validItems.map((it) => ({
-          vegetable: it.vegetable || null,
-          particulars: it.particulars.trim(),
-          tamilName: (it.tamilName || '').trim(),
-          rate: Number(it.rate) || 0,
-          bag: Number(it.bag) || 0,
-          weight: Number(it.weight) || 0,
-          amount: Number(it.amount) || 0,
-        })),
-        previousBalance: parsedPrevBalance,
-        previousBalanceDate: previousBalanceDate || null,
-        discount: parsedDiscount,
-        varavu: parsedVaravu,
-        cashReceived: parsedVaravu,
-        todayTotal,
-        grandTotal: total,
-        closingBalance,
-        billVersion: 'v3_new_6row',
-        notes: notes.trim(),
-      };
+      if (isEditMode) {
+        const updatePayload = {
+          billDate,
+          items: validItems.map((it) => ({
+            vegetable: it.vegetable || null,
+            particulars: it.particulars.trim(),
+            tamilName: (it.tamilName || '').trim(),
+            rate: Number(it.rate) || 0,
+            bag: Number(it.bag) || 0,
+            weight: Number(it.weight) || 0,
+            amount: Number(it.amount) || 0,
+          })),
+          discount: parsedDiscount,
+          varavu: parsedVaravu,
+          cashReceived: parsedVaravu,
+          notes: notes.trim(),
+          version: editingBill?.version,
+        };
 
-      const res = await api.post('/bills', billPayload);
+        const res = await api.put(`/bills/${editBillId}`, updatePayload);
 
-      if (res.success && res.data) {
-        setSuccessMsg(`Bill #${res.data.billNumberFormatted} saved successfully!`);
+        if (res.success && res.data) {
+          const displayBillNum = res.data.billNumberFormatted || editingBill?.billNumberFormatted || `#${editingBill?.billNumber}`;
+          setSuccessMsg(`Bill #${displayBillNum} updated successfully!`);
+          setEditingBill(res.data);
 
-        // Optimistically increment next bill number locally
-        if (res.data.billNumber) {
-          const nextNum = res.data.billNumber + 1;
-          const prefix = settings.billPrefix || 'CPN';
-          setNextBillInfo({
-            nextBillNumber: nextNum,
-            formattedBillNumber: `${prefix}-${String(nextNum).padStart(4, '0')}`,
+          if (options.autoPrint) {
+            setAutoPrint(true);
+            setPrintModalBill(res.data);
+          }
+          return res.data;
+        }
+      } else {
+        const billPayload = {
+          customerId: selectedCustomer?._id || null,
+          customerName: finalCustName,
+          customerPhone: customerPhone.trim(),
+          billDate,
+          items: validItems.map((it) => ({
+            vegetable: it.vegetable || null,
+            particulars: it.particulars.trim(),
+            tamilName: (it.tamilName || '').trim(),
+            rate: Number(it.rate) || 0,
+            bag: Number(it.bag) || 0,
+            weight: Number(it.weight) || 0,
+            amount: Number(it.amount) || 0,
+          })),
+          previousBalance: parsedPrevBalance,
+          previousBalanceDate: previousBalanceDate || null,
+          discount: parsedDiscount,
+          varavu: parsedVaravu,
+          cashReceived: parsedVaravu,
+          todayTotal,
+          grandTotal: total,
+          closingBalance,
+          billVersion: 'v3_new_6row',
+          notes: notes.trim(),
+        };
+
+        const res = await api.post('/bills', billPayload);
+
+        if (res.success && res.data) {
+          setSuccessMsg(`Bill #${res.data.billNumberFormatted} saved successfully!`);
+
+          // Optimistically increment next bill number locally
+          if (res.data.billNumber) {
+            const nextNum = res.data.billNumber + 1;
+            const prefix = settings.billPrefix || 'CPN';
+            setNextBillInfo({
+              nextBillNumber: nextNum,
+              formattedBillNumber: `${prefix}-${String(nextNum).padStart(4, '0')}`,
+            });
+          }
+
+          // Background synchronization
+          api.get('/bills/next-number').then((nRes) => {
+            if (nRes.success) setNextBillInfo(nRes);
           });
+
+          if (options.autoPrint) {
+            setAutoPrint(true);
+            setPrintModalBill(res.data);
+          } else {
+            // Instant form reset for seamless Save & New continuous billing
+            setSelectedCustomer(null);
+            setCustomerName('');
+            setCustomerPhone('');
+            setPreviousBalance(0);
+            setPreviousBalanceDate('');
+            setCashReceived('');
+            setDiscount('');
+            setVaravu('');
+            setNotes('');
+            setItems(createInitialRows(DEFAULT_ROW_COUNT));
+            customerInputRef.current?.focus();
+          }
+
+          return res.data;
         }
-
-        // Background synchronization
-        api.get('/bills/next-number').then((nRes) => {
-          if (nRes.success) setNextBillInfo(nRes);
-        });
-
-        if (options.autoPrint) {
-          setAutoPrint(true);
-          setPrintModalBill(res.data);
-        } else {
-          // Instant form reset for seamless Save & New continuous billing
-          setSelectedCustomer(null);
-          setCustomerName('');
-          setCustomerPhone('');
-          setPreviousBalance(0);
-          setPreviousBalanceDate('');
-          setCashReceived('');
-          setDiscount('');
-          setVaravu('');
-          setNotes('');
-          setItems(createInitialRows(DEFAULT_ROW_COUNT));
-          customerInputRef.current?.focus();
-        }
-
-        return res.data;
       }
     } catch (err) {
       setError(err.message || 'Failed to save bill');
@@ -433,6 +556,9 @@ export const NewBill = () => {
   const handleClosePrintModal = () => {
     setPrintModalBill(null);
     setAutoPrint(false);
+    if (isEditMode) {
+      return;
+    }
     // Reset form for next customer
     setSelectedCustomer(null);
     setCustomerName('');
@@ -452,57 +578,103 @@ export const NewBill = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-4">
       {/* Top Banner & Quick Shortcuts Info */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+      <div
+        className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-4 rounded-2xl shadow-sm border ${
+          isEditMode ? 'border-blue-300 bg-blue-50/20' : 'border-gray-200'
+        }`}
+      >
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-[#034D28]">
-            <Sparkles className="w-5 h-5" />
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isEditMode ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-[#034D28]'
+            }`}
+          >
+            {isEditMode ? <Edit2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-black text-gray-900 tracking-tight">
-                New Vegetable Bill / புதிய பில்
+                {isEditMode ? 'Edit Vegetable Bill / பில் திருத்துதல்' : 'New Vegetable Bill / புதிய பில்'}
               </h1>
-              <span className="bg-[#034D28] text-white text-xs px-2.5 py-0.5 rounded-full font-mono font-bold">
-                {nextBillInfo.formattedBillNumber}
-              </span>
+              {isEditMode ? (
+                <span className="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-mono font-bold flex items-center gap-1 shadow-xs">
+                  <Edit2 className="w-3 h-3" />
+                  Editing {editingBill?.billNumberFormatted || (editingBill ? `CPN-${String(editingBill.billNumber).padStart(4, '0')}` : '...')}
+                </span>
+              ) : (
+                <span className="bg-[#034D28] text-white text-xs px-2.5 py-0.5 rounded-full font-mono font-bold">
+                  {nextBillInfo.formattedBillNumber}
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-500 font-medium">
-              Enter key navigates columns. Select or add vegetables dynamically.
+              {isEditMode
+                ? 'Modify items, rates, weights, or cash received. Original bill number is preserved.'
+                : 'Enter key navigates columns. Select or add vegetables dynamically.'}
             </p>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={handleReset}
-            className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer"
-            title="Clear Form (Esc)"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>Reset</span>
-          </button>
+          {isEditMode ? (
+            <button
+              type="button"
+              onClick={() => navigate('/bills')}
+              className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer"
+              title="Return to Bills List"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Cancel Edit</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleReset}
+              className="flex-1 sm:flex-none px-3.5 py-2 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all flex items-center justify-center gap-1.5 min-h-[42px] cursor-pointer"
+              title="Clear Form (Esc)"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => handleSubmitBill({ autoPrint: false })}
-            disabled={loading}
-            className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-[#034D28] bg-emerald-100 hover:bg-emerald-200 rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] cursor-pointer"
+            disabled={loading || editLoading}
+            className={`flex-1 sm:flex-none px-4 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] cursor-pointer ${
+              isEditMode
+                ? 'text-blue-700 bg-blue-100 hover:bg-blue-200'
+                : 'text-[#034D28] bg-emerald-100 hover:bg-emerald-200'
+            }`}
           >
             <Save className="w-4 h-4" />
-            <span>Save & New</span>
+            <span>{isEditMode ? 'Save Changes' : 'Save & New'}</span>
           </button>
+
           <button
             type="button"
             onClick={() => handleSubmitBill({ autoPrint: true })}
-            disabled={loading}
-            className="flex-1 sm:flex-none px-5 py-2 text-xs font-black text-white bg-[#034D28] hover:bg-[#02361c] rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] cursor-pointer"
+            disabled={loading || editLoading}
+            className={`flex-1 sm:flex-none px-5 py-2 text-xs font-black text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 min-h-[42px] cursor-pointer ${
+              isEditMode
+                ? 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-[#034D28] hover:bg-[#02361c]'
+            }`}
           >
             <Printer className="w-4 h-4" />
             <span>Save & Print</span>
           </button>
         </div>
       </div>
+
+      {/* Edit Loading State */}
+      {editLoading && (
+        <div className="p-6 bg-blue-50 border border-blue-200 rounded-2xl text-center text-blue-900 font-bold animate-pulse text-sm">
+          Loading existing bill details for editing...
+        </div>
+      )}
 
       {/* Alerts */}
       {error && (
@@ -525,14 +697,26 @@ export const NewBill = () => {
           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
             Customer / திரு: <span className="text-red-500">*</span>
           </label>
-          <CustomerAutocomplete
-            inputRef={customerInputRef}
-            customers={customers}
-            selectedCustomer={selectedCustomer}
-            onSelectCustomer={handleSelectCustomer}
-            onTextChange={(val) => setCustomerName(val)}
-            onEnterNext={() => cellRefs.current[0]?.particulars?.focus()}
-          />
+          {isEditMode ? (
+            <div className="w-full px-3 py-2 border border-blue-200 bg-blue-50/50 rounded-xl text-sm flex items-center justify-between min-h-[42px]">
+              <div>
+                <span className="font-bold text-gray-900 block">{customerName || 'Customer'}</span>
+                {customerPhone && <span className="text-xs text-gray-500 font-mono-num">{customerPhone}</span>}
+              </div>
+              <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
+                Customer Locked
+              </span>
+            </div>
+          ) : (
+            <CustomerAutocomplete
+              inputRef={customerInputRef}
+              customers={customers}
+              selectedCustomer={selectedCustomer}
+              onSelectCustomer={handleSelectCustomer}
+              onTextChange={(val) => setCustomerName(val)}
+              onEnterNext={() => cellRefs.current[0]?.particulars?.focus()}
+            />
+          )}
         </div>
 
         {/* Customer Phone (Optional display/edit) */}
