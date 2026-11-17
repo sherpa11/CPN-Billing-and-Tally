@@ -221,38 +221,42 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 height: '100%',
               }}
             >
-              {/* 1. CUSTOMER NAME (on திரு: underline - X=77..446, Y=250) */}
+              {/* 1. CUSTOMER NAME (on திரு: underline - X=78..476, Y=250) */}
               <div
-                className="absolute flex items-center font-bold text-gray-950 font-tamil text-[10px] truncate pl-0.5 pr-2"
+                className="absolute flex items-end font-black text-black font-tamil text-[13px] leading-none truncate pl-1 pr-2"
                 style={{
-                  left: '10.8%',
-                  top: '21.6%',
-                  width: '51.8%',
-                  height: '2.8%',
+                  left: '11.0%',
+                  top: '22.0%',
+                  width: '56.0%',
+                  height: '2.41%',
+                  paddingBottom: '0.5px',
+                  boxSizing: 'border-box',
                 }}
                 title={bill.customerName || bill.customer?.name}
               >
                 <span className="truncate">{bill.customerName || bill.customer?.name || ''}</span>
                 {bill.customerPhone && (
-                  <span className="font-mono-num font-semibold text-gray-800 text-[9px] ml-1.5 flex-shrink-0">
+                  <span className="font-mono-num font-bold text-gray-800 text-[10px] ml-1.5 flex-shrink-0">
                     ({bill.customerPhone})
                   </span>
                 )}
                 {page.pageNumber > 1 && (
-                  <span className="text-[8.5px] font-bold text-[#034D28] ml-2 flex-shrink-0">
-                    (தொடர்ச்சி - பக்கம் {page.pageNumber})
+                  <span className="text-[9px] font-bold text-[#034D28] ml-2 flex-shrink-0">
+                    (பக்கம் {page.pageNumber})
                   </span>
                 )}
               </div>
 
               {/* 2. DATE (on தேதி : underline - X=551..684, Y=250) */}
               <div
-                className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[10px]"
+                className="absolute flex items-end justify-center font-mono-num font-bold text-gray-950 text-[10.5px] leading-none"
                 style={{
-                  left: '77.0%',
-                  top: '21.6%',
-                  width: '19.0%',
-                  height: '2.8%',
+                  left: '77.2%',
+                  top: '22.0%',
+                  width: '18.8%',
+                  height: '2.41%',
+                  paddingBottom: '0.5px',
+                  boxSizing: 'border-box',
                 }}
               >
                 {formatDate(bill.billDate)}
@@ -481,11 +485,11 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               {/* Page indicator for multi-page bills (inside footer line next to வாழ்க வளமுடன்) */}
               {page.totalPages > 1 && (
                 <div
-                  className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[8px]"
+                  className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[8.5px]"
                   style={{
-                    top: '93.5%',
+                    top: '94.2%',
                     right: '3.5%',
-                    height: '2.8%',
+                    height: '2.4%',
                   }}
                 >
                   பக்கம் {page.pageNumber} / {page.totalPages}
