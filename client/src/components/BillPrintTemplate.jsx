@@ -9,7 +9,7 @@ import React from 'react';
  * 2. Absolutely NO recreated HTML tables, simulated logos, redrawn QR codes, or artificial headers.
  * 3. Dynamically overlays text in accurately measured percentage coordinates mapped to the
  *    712px × 1024px canvas of the original bill leaf.
- * 4. Fixed A6 Portrait geometry (105mm × 148mm) - prints on exactly ONE sheet for normal bills (1-20 items).
+ * 4. Fixed A5 Portrait geometry (148mm × 210mm) - prints on exactly ONE sheet for normal bills (1-20 items).
  * 5. Adaptive row sizing and font scaling based on vegetable item count.
  * 6. Preserves all existing accounting logic, balance continuity, and customer ledger invariants.
  */
@@ -36,16 +36,16 @@ const getAdaptiveOverlayLayout = (itemCount) => {
   if (itemCount <= 5) {
     return {
       rowHeightPercent: 4.5,
-      fontSizeParticulars: 'text-[11.5px] leading-tight font-bold',
-      fontSizeData: 'text-[11.5px] font-bold',
+      fontSizeParticulars: 'text-[15px] leading-tight font-bold',
+      fontSizeData: 'text-[15px] font-bold',
       lineHeight: 'leading-normal',
     };
   } else {
     // 6 to 10 items
     return {
       rowHeightPercent: 3.9,
-      fontSizeParticulars: 'text-[10.5px] leading-tight font-bold',
-      fontSizeData: 'text-[10.5px] font-bold',
+      fontSizeParticulars: 'text-[13.5px] leading-tight font-bold',
+      fontSizeData: 'text-[13.5px] font-bold',
       lineHeight: 'leading-normal',
     };
   }
@@ -152,7 +152,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
       ? bill.closingBalance
       : Math.round((total - discount - varavu) * 100) / 100;
 
-  // Multi-page splitting logic for A6 (10 items fit per page cleanly)
+  // Multi-page splitting logic for A5 (10 items fit per page cleanly)
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.max(1, Math.ceil(activeItems.length / ITEMS_PER_PAGE));
   const pages = [];
@@ -177,15 +177,15 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
         return (
           <div
             key={`page-${pIdx}`}
-            className={`cpn-a6-bill select-none shadow-xl mb-6 last:mb-0 border border-gray-300 rounded-sm ${
-              !page.isFinalPage ? 'cpn-a6-bill-page-break' : ''
+            className={`cpn-a5-bill select-none shadow-xl mb-6 last:mb-0 border border-gray-300 rounded-sm ${
+              !page.isFinalPage ? 'cpn-a5-bill-page-break' : ''
             }`}
             style={{
               position: 'relative',
-              width: '105mm',
-              maxWidth: '105mm',
-              height: '148mm',
-              maxHeight: '148mm',
+              width: '148mm',
+              maxWidth: '148mm',
+              height: '210mm',
+              maxHeight: '210mm',
               margin: '0 auto',
               padding: 0,
               boxSizing: 'border-box',
@@ -223,7 +223,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
             >
               {/* 1. CUSTOMER NAME (திரு: - X=84..480, Y=216..251) */}
               <div
-                className="absolute flex items-center font-black text-black font-tamil text-[14px] leading-none truncate pl-1 pr-2"
+                className="absolute flex items-center font-black text-black font-tamil text-[18px] leading-none truncate pl-1 pr-2"
                 style={{
                   left: '11.8%',
                   top: '21.09%',
@@ -235,12 +235,12 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               >
                 <span className="truncate">{bill.customerName || bill.customer?.name || ''}</span>
                 {bill.customerPhone && (
-                  <span className="font-mono-num font-bold text-gray-800 text-[10.5px] ml-1.5 flex-shrink-0">
+                  <span className="font-mono-num font-bold text-gray-800 text-[13px] ml-1.5 flex-shrink-0">
                     ({bill.customerPhone})
                   </span>
                 )}
                 {page.pageNumber > 1 && (
-                  <span className="text-[9.5px] font-bold text-[#034D28] ml-2 flex-shrink-0">
+                  <span className="text-[12px] font-bold text-[#034D28] ml-2 flex-shrink-0">
                     (பக்கம் {page.pageNumber})
                   </span>
                 )}
@@ -248,7 +248,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
 
               {/* 2. DATE (தேதி : - X=552..690, Y=216..251) */}
               <div
-                className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[12px] leading-none"
+                className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[15px] leading-none"
                 style={{
                   left: '77.5%',
                   top: '21.09%',
@@ -356,7 +356,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 <>
                   {/* Row 1: இன்றைய மொத்தம் (Today's Total) Amount - Y=750..782px (73.24%..76.37%) */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[12px]"
+                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[15px]"
                     style={{
                       left: '66.57%',
                       top: '73.24%',
@@ -370,7 +370,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   {/* Row 2: முன் பாக்கி Date - X=236..472px (33.15%..66.29%), Y=782..813px (76.37%..79.39%) */}
                   {previousBalanceDateFormatted && (
                     <div
-                      className="absolute flex items-center justify-start pl-2 font-mono-num font-bold text-gray-950 text-[10px]"
+                      className="absolute flex items-center justify-start pl-2 font-mono-num font-bold text-gray-950 text-[12.5px]"
                       style={{
                         left: '33.15%',
                         top: '76.37%',
@@ -384,7 +384,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
 
                   {/* Row 2: முன் பாக்கி (Previous Balance) Amount */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[12px]"
+                    className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[15px]"
                     style={{
                       left: '66.57%',
                       top: '76.37%',
@@ -397,7 +397,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
 
                   {/* Row 3: மொத்தம் (Total) Amount - Y=813..849px (79.39%..82.91%) */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[13px]"
+                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[16px]"
                     style={{
                       left: '66.57%',
                       top: '79.39%',
@@ -411,7 +411,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   {/* Row 4: தள்ளுபடி (Discount) note next to ரொக்கம் பெற்றது if present */}
                   {discount > 0 && (
                     <div
-                      className="absolute flex items-center justify-end pr-1 font-mono-num font-bold text-amber-900 text-[8.5px] whitespace-nowrap"
+                      className="absolute flex items-center justify-end pr-1 font-mono-num font-bold text-amber-900 text-[11px] whitespace-nowrap"
                       style={{
                         left: '34.0%',
                         top: '82.91%',
@@ -425,7 +425,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
 
                   {/* Row 4: ரொக்கம் பெற்றது / வரவு (Cash Received) Amount - Y=849..885px (82.91%..86.43%) */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[12px]"
+                    className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[15px]"
                     style={{
                       left: '66.57%',
                       top: '82.91%',
@@ -438,7 +438,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
 
                   {/* Row 5: இறுதி மொத்தம் / மொத்த பாக்கி (Closing Balance) Amount - Y=885..929px (86.43%..90.72%) */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[14px]"
+                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]"
                     style={{
                       left: '66.57%',
                       top: '86.43%',
@@ -467,15 +467,15 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     style={{ boxSizing: 'border-box' }}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-1.5 font-tamil font-black text-[#034D28] text-[11px]">
+                      <div className="flex items-center gap-1.5 font-tamil font-black text-[#034D28] text-[14px]">
                         <span>தொடர்ச்சி அடுத்த பக்கம் {page.pageNumber + 1}-ல் பார்க்கவும்</span>
-                        <span className="text-[12px] font-bold">&gt;&gt;</span>
+                        <span className="text-[15px] font-bold">&gt;&gt;</span>
                       </div>
-                      <div className="font-mono-num font-black text-[#034D28] text-[10px] bg-white px-2 py-0.5 rounded border border-[#034D28]">
+                      <div className="font-mono-num font-black text-[#034D28] text-[13px] bg-white px-2 py-0.5 rounded border border-[#034D28]">
                         பக்கம் {page.pageNumber} / {page.totalPages}
                       </div>
                     </div>
-                    <div className="text-[8.5px] font-tamil text-gray-700 mt-1 text-center w-full">
+                    <div className="text-[11px] font-tamil text-gray-700 mt-1 text-center w-full">
                       (மொத்த கணக்கு விவரம் இறுதி பக்கம் {page.totalPages}-ல் காண்க)
                     </div>
                   </div>
@@ -485,7 +485,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               {/* Page indicator for multi-page bills (inside footer line next to வாழ்க வளமுடன்) */}
               {page.totalPages > 1 && (
                 <div
-                  className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[8.5px]"
+                  className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[11px]"
                   style={{
                     top: '92.5%',
                     right: '3.5%',

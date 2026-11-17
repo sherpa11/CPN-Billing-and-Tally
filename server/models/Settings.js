@@ -45,7 +45,7 @@ const settingsSchema = new mongoose.Schema(
     paperSize: {
       type: String,
       enum: ['A4', 'A5', 'A6', 'Thermal'],
-      default: 'A6',
+      default: 'A5',
     },
     upiId: {
       type: String,

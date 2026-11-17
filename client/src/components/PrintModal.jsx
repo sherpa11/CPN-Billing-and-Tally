@@ -9,8 +9,8 @@ import LegacyBillPrintTemplate from './LegacyBillPrintTemplate';
 /**
  * PrintModal component:
  * 1. Mounts via React Portal into #print-root (outside #root).
- * 2. Adds 'print-bill-active' to document.body and injects A6 @page rule.
- * 3. Enforces A6 sheet layout (105mm × 148mm) and guarantees ONLY the bill prints on 1 sheet.
+ * 2. Adds 'print-bill-active' to document.body and injects A5 @page rule.
+ * 3. Enforces A5 sheet layout (148mm × 210mm) and guarantees ONLY the bill prints on 1 sheet.
  */
 export const PrintModal = ({
   isOpen,
@@ -55,25 +55,25 @@ export const PrintModal = ({
     setPrintMountNode(node);
   }, []);
 
-  // Manage body class 'print-bill-active' and dynamic A6 @page style when modal is open
+  // Manage body class 'print-bill-active' and dynamic A5 @page style when modal is open
   useEffect(() => {
     if (isOpen && bill) {
       document.body.classList.add('print-bill-active');
-      let styleTag = document.getElementById('a6-bill-print-style');
+      let styleTag = document.getElementById('a5-bill-print-style');
       if (!styleTag) {
         styleTag = document.createElement('style');
-        styleTag.id = 'a6-bill-print-style';
-        styleTag.textContent = '@page { size: 105mm 148mm; margin: 0; }';
+        styleTag.id = 'a5-bill-print-style';
+        styleTag.textContent = '@page { size: 148mm 210mm; margin: 0; }';
         document.head.appendChild(styleTag);
       }
     } else {
       document.body.classList.remove('print-bill-active');
-      const styleTag = document.getElementById('a6-bill-print-style');
+      const styleTag = document.getElementById('a5-bill-print-style');
       if (styleTag) styleTag.remove();
     }
     return () => {
       document.body.classList.remove('print-bill-active');
-      const styleTag = document.getElementById('a6-bill-print-style');
+      const styleTag = document.getElementById('a5-bill-print-style');
       if (styleTag) styleTag.remove();
     };
   }, [isOpen, bill]);
@@ -95,7 +95,7 @@ export const PrintModal = ({
     const computeScale = () => {
       if (!scrollAreaRef.current) return;
       const clientWidth = scrollAreaRef.current.clientWidth;
-      const baseWidthPx = 397; // 105mm in 96 DPI CSS pixels (105 / 25.4 * 96)
+      const baseWidthPx = 560; // 148mm in 96 DPI CSS pixels (148 / 25.4 * 96)
       const availableWidth = clientWidth - 24;
       if (availableWidth > 0 && availableWidth < baseWidthPx) {
         setScale(availableWidth / baseWidthPx);
@@ -146,11 +146,11 @@ export const PrintModal = ({
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-[#034D28] border border-emerald-300 rounded-full text-[11px] font-black">
                   <CheckCircle2 className="w-3 h-3 text-[#034D28]" />
-                  {sheetCount === 1 ? 'A6 Sheet (1 Sheet Only)' : `A6 Sheets (${sheetCount} Sheets)`}
+                  {sheetCount === 1 ? 'A5 Sheet (1 Sheet Only)' : `A5 Sheets (${sheetCount} Sheets)`}
                 </span>
               </div>
               <p className="text-xs text-gray-500 font-medium">
-                Target: Canon G3030 series • Alignment matched to A6 portrait (105 × 148 mm)
+                Target: Canon G3030 series • Alignment matched to A5 portrait (148 × 210 mm)
               </p>
             </div>
           </div>

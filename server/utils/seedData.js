@@ -56,7 +56,7 @@ const seedInitialData = async () => {
         primaryColor: '#034D28',
         secondaryColor: '#FFFFFF',
         billPrefix: 'CPN',
-        paperSize: 'A6',
+        paperSize: 'A5',
         logoUrl: '/cpn_logo.png',
         upiId: 'rajapandi688-1@okaxis',
       });

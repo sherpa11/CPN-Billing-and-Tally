@@ -18,7 +18,7 @@ const getSettings = async (req, res) => {
         primaryColor: '#034D28',
         secondaryColor: '#FFFFFF',
         billPrefix: 'CPN',
-        paperSize: 'A4',
+        paperSize: 'A5',
         logoUrl: '/cpn_logo.png',
       });
     }

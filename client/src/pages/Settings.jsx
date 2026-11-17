@@ -26,7 +26,7 @@ export const Settings = () => {
     contactNumbers: '',
     footerText: '',
     billPrefix: 'CPN',
-    paperSize: 'A4',
+    paperSize: 'A5',
   });
 
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ export const Settings = () => {
         contactNumbers: (settings.contactNumbers || ['97152 67025', '97882 29090']).join(', '),
         footerText: settings.footerText || 'வாழ்க வளமுடன்',
         billPrefix: settings.billPrefix || 'CPN',
-        paperSize: settings.paperSize || 'A4',
+        paperSize: settings.paperSize || 'A5',
       });
     }
   }, [settings]);
@@ -273,8 +273,8 @@ export const Settings = () => {
               onChange={(e) => setFormData({ ...formData, paperSize: e.target.value })}
               className="w-full min-h-[42px] px-3.5 py-2.5 border border-gray-300 rounded-xl font-bold focus:border-[#034D28] outline-none text-sm bg-white"
             >
-              <option value="A4">A4 (Standard Wholesale Sheet)</option>
-              <option value="A5">A5 (Half Sheet)</option>
+              <option value="A5">A5 (Standard Wholesale Bill - 148 × 210 mm)</option>
+              <option value="A4">A4 (Full Sheet)</option>
               <option value="Thermal">Thermal 80mm</option>
             </select>
           </div>
