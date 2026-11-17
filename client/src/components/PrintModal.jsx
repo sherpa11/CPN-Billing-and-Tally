@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Printer, X, CheckCircle2 } from 'lucide-react';
+import {
+  Printer,
+  X,
+  CheckCircle2,
+  Loader2,
+  ChevronDown,
+  Monitor,
+  ImageDown,
+  Download,
+} from 'lucide-react';
+import { toBlob, toPng } from 'html-to-image';
 import api from '../api/axios';
 import appCache from '../services/cache';
 import BillPrintTemplate from './BillPrintTemplate';
@@ -10,7 +20,9 @@ import LegacyBillPrintTemplate from './LegacyBillPrintTemplate';
  * PrintModal component:
  * 1. Mounts via React Portal into #print-root (outside #root).
  * 2. Adds 'print-bill-active' to document.body and injects A5 @page rule.
- * 3. Enforces A5 sheet layout (148mm × 210mm) and guarantees ONLY the bill prints on 1 sheet.
+ * 3. Enforces A5 sheet layout (148mm × 210mm) and guarantees ONLY the bill prints.
+ * 4. Provides a unified print menu: Direct to Canon G3030, Browser Print Preview,
+ *    Download Bill Image (One-Click PNG at 3x scale), and Download PDF.
  */
 export const PrintModal = ({
   isOpen,
@@ -22,7 +34,14 @@ export const PrintModal = ({
   const [printMountNode, setPrintMountNode] = useState(null);
   const [scale, setScale] = useState(1);
   const [masterVegetables, setMasterVegetables] = useState([]);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloadingImage, setIsDownloadingImage] = useState(false);
+  const [printSuccess, setPrintSuccess] = useState(false);
+  const [printMessage, setPrintMessage] = useState('');
+  const [showOptions, setShowOptions] = useState(false);
+
   const scrollAreaRef = useRef(null);
+  const dropdownRef = useRef(null);
 
   // Load master vegetables for resolving Tamil names in printed bills (with in-memory cache)
   useEffect(() => {
@@ -109,17 +128,269 @@ export const PrintModal = ({
     return () => window.removeEventListener('resize', computeScale);
   }, [isOpen]);
 
+  // Close options dropdown on outside click
+  useEffect(() => {
+    if (!showOptions) return;
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setShowOptions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showOptions]);
+
   // Keyboard shortcut listener (Escape to close)
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        onClose();
+        if (showOptions) {
+          setShowOptions(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, showOptions, onClose]);
+
+  // 1. Direct Print to Canon G3030 (A5 Portrait)
+  const handleDirectPrint = () => {
+    setShowOptions(false);
+    setIsPrinting(true);
+    setPrintMessage('Sending to Canon G3030...');
+
+    const origTitle = document.title;
+    const billNum = bill?.billNumberFormatted || (bill?.billNumber ? `CPN-${String(bill.billNumber).padStart(4, '0')}` : 'Bill');
+    document.title = billNum;
+
+    try {
+      window.print();
+      setPrintSuccess(true);
+      setPrintMessage('Printed to Canon G3030');
+      setTimeout(() => {
+        setPrintSuccess(false);
+        setPrintMessage('');
+      }, 4000);
+    } catch (err) {
+      console.warn('[PrintModal] Direct print error:', err);
+    } finally {
+      setIsPrinting(false);
+      setTimeout(() => {
+        document.title = origTitle;
+      }, 2000);
+    }
+  };
+
+  // 2. Browser Print Preview
+  const handleBrowserPrint = () => {
+    setShowOptions(false);
+    window.print();
+  };
+
+  // 3. One-Click Download Bill Image (High-Resolution PNG at 3x Scale)
+  const handleDownloadImage = async () => {
+    setShowOptions(false);
+    setIsDownloadingImage(true);
+    setPrintMessage('Exporting bill image...');
+
+    try {
+      // Locate the printable bill container
+      const printableOuter = document.querySelector('#printable-bill');
+      let pageNodes = printableOuter ? Array.from(printableOuter.querySelectorAll('.cpn-a5-bill')) : [];
+      if (pageNodes.length === 0) {
+        const singleNode = document.querySelector('.cpn-a5-bill');
+        if (singleNode) pageNodes = [singleNode];
+      }
+
+      if (pageNodes.length === 0) {
+        throw new Error('Bill content element not found');
+      }
+
+      // Exact unscaled A5 dimensions in screen pixels (96 DPI: 1 inch = 25.4mm)
+      // A5 width: 148mm = 559.37px; A5 height: 210mm = 793.70px
+      const targetWidthPx = 559.37;
+      const targetHeightPx = 793.70;
+
+      // Wait for Tamil fonts (Mukta Malar / Noto Sans Tamil / system) to be ready
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch {}
+      }
+
+      const billNum = bill?.billNumberFormatted || (bill?.billNumber ? `CPN-${String(bill.billNumber).padStart(4, '0')}` : 'Bill');
+      const safeCustomerName = (bill?.customerName || bill?.customer?.name || 'Customer')
+        .trim()
+        .replace(/[\/\s]+/g, '_')
+        .replace(/[^a-zA-Z0-9_\-\u0B80-\u0BFF]/g, '');
+
+      let dateStr = '';
+      if (bill?.billDate) {
+        const d = new Date(bill.billDate);
+        if (!isNaN(d.getTime())) {
+          dateStr = d.toISOString().slice(0, 10);
+        }
+      }
+      if (!dateStr) {
+        dateStr = new Date().toISOString().slice(0, 10);
+      }
+
+      // Process each page (supports 1-sheet or multi-sheet bills)
+      for (let i = 0; i < pageNodes.length; i++) {
+        const pageNode = pageNodes[i];
+        const pageSuffix = pageNodes.length > 1 ? `_Page${i + 1}` : '';
+        const filename = `Bill_${billNum}_${safeCustomerName || 'Customer'}_${dateStr}${pageSuffix}.png`;
+
+        let exportContainer = null;
+        try {
+          // Dedicated unscaled off-screen container to isolate from modal zoom/scale
+          exportContainer = document.createElement('div');
+          exportContainer.style.position = 'fixed';
+          exportContainer.style.left = '-99999px';
+          exportContainer.style.top = '0';
+          exportContainer.style.width = `${targetWidthPx}px`;
+          exportContainer.style.height = `${targetHeightPx}px`;
+          exportContainer.style.margin = '0';
+          exportContainer.style.padding = '0';
+          exportContainer.style.overflow = 'hidden';
+          exportContainer.style.background = '#ffffff';
+          exportContainer.style.zIndex = '-9999';
+          exportContainer.style.transform = 'none';
+
+          const clone = pageNode.cloneNode(true);
+          clone.style.transform = 'none';
+          clone.style.margin = '0';
+          clone.style.width = `${targetWidthPx}px`;
+          clone.style.height = `${targetHeightPx}px`;
+          clone.style.maxWidth = `${targetWidthPx}px`;
+          clone.style.maxHeight = `${targetHeightPx}px`;
+          clone.style.boxShadow = 'none';
+          clone.style.border = 'none';
+          clone.style.borderRadius = '0';
+
+          exportContainer.appendChild(clone);
+          document.body.appendChild(exportContainer);
+
+          // Ensure template background image and logos are loaded in the clone
+          const imgElements = Array.from(clone.querySelectorAll('img'));
+          await Promise.all(
+            imgElements.map((img) => {
+              if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+              return new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve;
+                setTimeout(resolve, 500);
+              });
+            })
+          );
+
+          // Brief tick for font layout stabilization
+          await new Promise((r) => setTimeout(r, 60));
+
+          // Generate high-resolution (3x) PNG blob
+          let blob = null;
+          try {
+            blob = await toBlob(clone, {
+              pixelRatio: 3,
+              width: targetWidthPx,
+              height: targetHeightPx,
+              backgroundColor: '#ffffff',
+              cacheBust: false,
+            });
+          } catch (blobErr) {
+            console.warn('[PrintModal] toBlob direct capture fallback to toPng:', blobErr);
+            const dataUrl = await toPng(clone, {
+              pixelRatio: 3,
+              width: targetWidthPx,
+              height: targetHeightPx,
+              backgroundColor: '#ffffff',
+            });
+            const resp = await fetch(dataUrl);
+            blob = await resp.blob();
+          }
+
+          if (!blob) {
+            throw new Error('Image generation produced empty blob');
+          }
+
+          // Device-Specific Download Behaviour:
+          // Mobile (Android / iOS): Use Web Share API if supported for direct Save to Photos/Gallery
+          const file = new File([blob], filename, { type: 'image/png' });
+          const canShare = typeof navigator !== 'undefined' &&
+            typeof navigator.share === 'function' &&
+            typeof navigator.canShare === 'function' &&
+            navigator.canShare({ files: [file] });
+
+          let shared = false;
+          if (canShare) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: filename.replace('.png', ''),
+                text: `CPN Vegetables Bill #${billNum}`,
+              });
+              shared = true;
+              setPrintMessage('Bill image ready to save or share!');
+              setTimeout(() => setPrintMessage(''), 4000);
+            } catch (shareErr) {
+              if (shareErr.name === 'AbortError') {
+                setPrintMessage('');
+                return;
+              }
+              console.warn('[PrintModal] Share API error, falling back to download:', shareErr);
+            }
+          }
+
+          if (!shared) {
+            // Desktop / Laptop & standard mobile download fallback
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+
+            setPrintMessage('Bill image downloaded!');
+            setTimeout(() => setPrintMessage(''), 4000);
+          }
+        } finally {
+          if (exportContainer && exportContainer.parentNode) {
+            exportContainer.parentNode.removeChild(exportContainer);
+          }
+        }
+
+        if (pageNodes.length > 1 && i < pageNodes.length - 1) {
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      }
+    } catch (err) {
+      console.error('[PrintModal] Download image failed:', err);
+      setPrintMessage('Failed to download bill image');
+      setTimeout(() => setPrintMessage(''), 4000);
+    } finally {
+      setIsDownloadingImage(false);
+    }
+  };
+
+  // 4. Download PDF Option (A5 Format via Browser Print Engine)
+  const handleDownloadPdf = () => {
+    setShowOptions(false);
+    const origTitle = document.title;
+    const billNum = bill?.billNumberFormatted || (bill?.billNumber ? `CPN-${String(bill.billNumber).padStart(4, '0')}` : 'Bill');
+    const custName = (bill?.customerName || bill?.customer?.name || 'Customer').trim().replace(/[\/\s]+/g, '_');
+    const dateStr = bill?.billDate ? new Date(bill.billDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+    document.title = `${billNum}_${custName}_${dateStr}`;
+    window.print();
+    setTimeout(() => {
+      document.title = origTitle;
+    }, 2000);
+  };
 
   if (!isOpen || !bill || !printMountNode) return null;
 
@@ -156,14 +427,122 @@ export const PrintModal = ({
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-[#034D28] hover:bg-[#02381c] text-white text-xs sm:text-sm font-bold rounded-xl shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-            >
-              <Printer className="w-4 h-4" />
-              <span>Print Bill</span>
-            </button>
+            {/* Status Feedback Message */}
+            {printMessage && (
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-[#034D28] border border-emerald-200 rounded-xl text-xs font-bold animate-in fade-in">
+                {isDownloadingImage && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />}
+                {printSuccess && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                {printMessage}
+              </span>
+            )}
+
+            {/* Print & Export Action Menu (Split Button) */}
+            <div className="relative inline-flex items-stretch shadow-md rounded-xl">
+              <button
+                type="button"
+                onClick={() => handleDirectPrint()}
+                disabled={isDownloadingImage}
+                className={`px-3.5 sm:px-4 py-2 bg-[#034D28] hover:bg-[#02381c] text-white text-xs sm:text-sm font-bold rounded-l-xl flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 ${
+                  isDownloadingImage ? 'opacity-85' : ''
+                }`}
+                title="Direct Print to Canon G3030"
+              >
+                {isDownloadingImage ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : printSuccess ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                ) : (
+                  <Printer className="w-4 h-4" />
+                )}
+                <span>
+                  {isDownloadingImage
+                    ? 'Exporting...'
+                    : printSuccess
+                    ? 'Printed!'
+                    : 'Print Bill'}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowOptions(!showOptions)}
+                className="px-2 sm:px-2.5 bg-[#02381c] hover:bg-[#012513] text-white rounded-r-xl border-l border-emerald-700/50 flex items-center justify-center cursor-pointer transition-colors"
+                title="More Print & Download Options"
+              >
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Options Dropdown Menu */}
+              {showOptions && (
+                <div
+                  ref={dropdownRef}
+                  className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {/* 1. Direct to Canon G3030 */}
+                  <button
+                    type="button"
+                    onClick={() => handleDirectPrint()}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-100 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <Printer className="w-4 h-4 text-[#034D28]" />
+                    <div>
+                      <div className="font-extrabold text-gray-900">Direct to Canon G3030</div>
+                      <div className="text-[10px] text-gray-400 font-normal">1-click direct USB printing (A5)</div>
+                    </div>
+                  </button>
+
+                  {/* 2. Browser Print Preview */}
+                  <button
+                    type="button"
+                    onClick={handleBrowserPrint}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-100 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <Monitor className="w-4 h-4 text-gray-600" />
+                    <div>
+                      <div className="font-extrabold text-gray-900">Browser Print Preview</div>
+                      <div className="text-[10px] text-gray-400 font-normal">Chrome print dialog fallback</div>
+                    </div>
+                  </button>
+
+                  {/* 3. Download Bill Image */}
+                  <button
+                    type="button"
+                    onClick={handleDownloadImage}
+                    disabled={isDownloadingImage}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-100 flex items-center gap-2.5 cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    {isDownloadingImage ? (
+                      <Loader2 className="w-4 h-4 text-blue-600 animate-spin" />
+                    ) : (
+                      <ImageDown className="w-4 h-4 text-blue-600" />
+                    )}
+                    <div>
+                      <div className="font-extrabold text-gray-900">Download Bill Image</div>
+                      <div className="text-[10px] text-gray-400 font-normal">
+                        {isDownloadingImage ? 'Generating PNG...' : 'High-resolution PNG (A5)'}
+                      </div>
+                    </div>
+                  </button>
+
+                  <div className="my-1 border-t border-gray-100" />
+
+                  {/* 4. Download PDF */}
+                  <button
+                    type="button"
+                    onClick={handleDownloadPdf}
+                    className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-gray-800 hover:bg-gray-100 flex items-center gap-2.5 cursor-pointer transition-colors"
+                  >
+                    <Download className="w-4 h-4 text-amber-600" />
+                    <div>
+                      <div className="font-extrabold text-gray-900">Download PDF</div>
+                      <div className="text-[10px] text-gray-400 font-normal">Save as A5 PDF via print</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={onClose}
@@ -198,12 +577,12 @@ export const PrintModal = ({
         {/* Modal Footer Controls (Hidden during print) */}
         <div className="no-print px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500 bg-white">
           <span>
-            Press <strong>Ctrl + P</strong> or click <strong>Print Bill</strong> to print directly to Canon G3030 series.
+            Press <strong>Ctrl + P</strong> to print, or use the menu to <strong>Download Bill Image (PNG)</strong> or <strong>PDF</strong>.
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer"
+            className="px-4 py-1.5 font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors"
           >
             Close
           </button>
