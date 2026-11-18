@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard';
 import NewBill from './pages/NewBill';
 import AllBills from './pages/AllBills';
 import Customers from './pages/Customers';
+import Purchases from './pages/Purchases';
 import Vegetables from './pages/Vegetables';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
@@ -37,6 +38,7 @@ export function App() {
                   <Route path="new-bill" element={<NewBill />} />
                   <Route path="bills" element={<AllBills />} />
                   <Route path="customers" element={<Customers />} />
+                  <Route path="purchases" element={<Purchases />} />
                   <Route path="vegetables" element={<Vegetables />} />
                   <Route path="payments" element={<Payments />} />
                   <Route path="reports" element={<Reports />} />

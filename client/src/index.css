@@ -230,6 +230,37 @@ body.print-bill-active #print-root {
     color: #111827 !important;
   }
 
+  /* Significantly enlarged, bold typography for Customer Name & Outstanding Balance in print */
+  body.print-report-active .report-customer-name {
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    color: #000000 !important;
+    line-height: 1.25 !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+  }
+
+  body.print-report-active .report-outstanding-amount {
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    color: #78350f !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    letter-spacing: -0.01em !important;
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+    white-space: nowrap !important;
+  }
+
+  body.print-report-active .report-outstanding-total {
+    font-size: 17px !important;
+    font-weight: 900 !important;
+    color: #78350f !important;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    white-space: nowrap !important;
+  }
+
   body.print-report-active tbody tr:nth-child(even) {
     background-color: #f9fafb !important;
     -webkit-print-color-adjust: exact !important;

@@ -213,15 +213,16 @@ export const PrintModal = ({
         } catch {}
       }
 
-      const billNum = bill?.billNumberFormatted || (bill?.billNumber ? `CPN-${String(bill.billNumber).padStart(4, '0')}` : 'Bill');
-      const safeCustomerName = (bill?.customerName || bill?.customer?.name || 'Customer')
+      const billNum = bill?.billNumberFormatted || bill?.purchaseNumberFormatted || (bill?.billNumber ? `CPN-${String(bill.billNumber).padStart(4, '0')}` : 'Bill');
+      const safeCustomerName = (bill?.customerName || bill?.supplierName || bill?.customer?.name || bill?.supplier?.name || 'Party')
         .trim()
         .replace(/[\/\s]+/g, '_')
         .replace(/[^a-zA-Z0-9_\-\u0B80-\u0BFF]/g, '');
 
       let dateStr = '';
-      if (bill?.billDate) {
-        const d = new Date(bill.billDate);
+      const rawDate = bill?.billDate || bill?.purchaseDate;
+      if (rawDate) {
+        const d = new Date(rawDate);
         if (!isNaN(d.getTime())) {
           dateStr = d.toISOString().slice(0, 10);
         }
@@ -391,7 +392,7 @@ export const PrintModal = ({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-base sm:text-lg text-gray-900 leading-tight">
-                  Bill #{bill.billNumberFormatted || 'Preview'}
+                  Bill #{bill.billNumberFormatted || bill.purchaseNumberFormatted || 'Preview'}
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-[#034D28] border border-emerald-300 rounded-full text-[11px] font-black">
                   <CheckCircle2 className="w-3 h-3 text-[#034D28]" />

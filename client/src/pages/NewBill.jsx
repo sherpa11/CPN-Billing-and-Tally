@@ -14,12 +14,14 @@ import {
   UserCheck,
   Edit2,
   ArrowLeft,
+  Truck,
 } from 'lucide-react';
 import api from '../api/axios';
 import { appCache } from '../services/cache';
 import { useSettings } from '../context/SettingsContext';
 import { round2, add2, sub2, mul2, formatCurrency, formatNumber } from '../utils/math';
 import CustomerAutocomplete from '../components/CustomerAutocomplete';
+import SupplierAutocomplete from '../components/SupplierAutocomplete';
 import VegetableAutocomplete from '../components/VegetableAutocomplete';
 import QuickAddVegetableModal from '../components/QuickAddVegetableModal';
 import PrintModal from '../components/PrintModal';
@@ -48,10 +50,17 @@ export const NewBill = () => {
   // Master lists
   const [vegetables, setVegetables] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [nextBillInfo, setNextBillInfo] = useState({ nextBillNumber: 1, formattedBillNumber: 'CPN-0001' });
+  const [nextPurchaseInfo, setNextPurchaseInfo] = useState({ nextPurchaseNumber: 1, formattedPurchaseNumber: 'PUR-0001' });
+
+  // Bill Party Mode: 'customer' | 'supplier'
+  const typeParam = searchParams.get('type');
+  const [partyType, setPartyType] = useState(() => (typeParam === 'supplier' ? 'supplier' : 'customer'));
 
   // Bill Form State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [billDate, setBillDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -95,6 +104,8 @@ export const NewBill = () => {
         const promises = [
           api.get('/customers?activeOnly=true&limit=500'),
           api.get('/bills/next-number'),
+          api.get('/suppliers?activeOnly=true&limit=500'),
+          api.get('/purchases/next-number'),
         ];
         if (!cachedVeg) {
           promises.push(api.get('/vegetables?activeOnly=true'));
@@ -103,10 +114,14 @@ export const NewBill = () => {
         const results = await Promise.all(promises);
         const custRes = results[0];
         const billNumRes = results[1];
-        const vegRes = !cachedVeg ? results[2] : null;
+        const suppRes = results[2];
+        const purNumRes = results[3];
+        const vegRes = !cachedVeg ? results[4] : null;
 
         if (custRes.success) setCustomers(custRes.data);
         if (billNumRes.success) setNextBillInfo(billNumRes);
+        if (suppRes.success) setSuppliers(suppRes.data);
+        if (purNumRes.success) setNextPurchaseInfo(purNumRes);
         if (vegRes && vegRes.success) {
           setVegetables(vegRes.data);
           appCache.set('vegetables_active', vegRes.data, 10 * 60 * 1000);
@@ -130,30 +145,48 @@ export const NewBill = () => {
       try {
         setEditLoading(true);
         setError('');
-        const res = await api.get(`/bills/${editBillId}`);
+        const isSupplier = typeParam === 'supplier' || partyType === 'supplier';
+        const endpoint = isSupplier ? `/purchases/${editBillId}` : `/bills/${editBillId}`;
+        const res = await api.get(endpoint);
         if (!res.success || !res.data) {
           setError('Could not find the requested bill to edit.');
           return;
         }
         const b = res.data;
         if (b.status === 'cancelled') {
-          setError(`Bill #${b.billNumberFormatted || b.billNumber} is cancelled and cannot be edited.`);
+          const num = b.purchaseNumberFormatted || b.billNumberFormatted || b.billNumber;
+          setError(`Bill #${num} is cancelled and cannot be edited.`);
           return;
         }
 
         setEditingBill(b);
-        const cName = b.customerName || (b.customer && b.customer.name) || '';
-        const cPhone = b.customerPhone || (b.customer && b.customer.phone) || '';
-        setCustomerName(cName);
-        setCustomerPhone(cPhone);
-        setSelectedCustomer(
-          b.customer && typeof b.customer === 'object'
-            ? b.customer
-            : { _id: b.customer, name: cName, phone: cPhone }
-        );
+        if (isSupplier) {
+          setPartyType('supplier');
+          const sName = b.supplierName || (b.supplier && b.supplier.name) || '';
+          const sPhone = b.supplierPhone || (b.supplier && b.supplier.phone) || '';
+          setCustomerName(sName);
+          setCustomerPhone(sPhone);
+          setSelectedSupplier(
+            b.supplier && typeof b.supplier === 'object'
+              ? b.supplier
+              : { _id: b.supplier, name: sName, phone: sPhone }
+          );
+        } else {
+          setPartyType('customer');
+          const cName = b.customerName || (b.customer && b.customer.name) || '';
+          const cPhone = b.customerPhone || (b.customer && b.customer.phone) || '';
+          setCustomerName(cName);
+          setCustomerPhone(cPhone);
+          setSelectedCustomer(
+            b.customer && typeof b.customer === 'object'
+              ? b.customer
+              : { _id: b.customer, name: cName, phone: cPhone }
+          );
+        }
 
-        if (b.billDate) {
-          setBillDate(new Date(b.billDate).toISOString().split('T')[0]);
+        const effectiveDate = b.billDate || b.purchaseDate;
+        if (effectiveDate) {
+          setBillDate(new Date(effectiveDate).toISOString().split('T')[0]);
         }
         setPreviousBalance(round2(b.previousBalance || 0));
         if (b.previousBalanceDate) {
@@ -162,7 +195,7 @@ export const NewBill = () => {
           setPreviousBalanceDate('');
         }
         setDiscount(b.discount > 0 ? String(b.discount) : '');
-        const effectiveVaravu = b.varavu !== undefined && b.varavu !== null ? b.varavu : b.cashReceived;
+        const effectiveVaravu = b.varavu !== undefined && b.varavu !== null ? b.varavu : (b.cashPaid !== undefined ? b.cashPaid : b.cashReceived);
         setVaravu(effectiveVaravu > 0 ? String(effectiveVaravu) : '');
         setCashReceived(effectiveVaravu > 0 ? String(effectiveVaravu) : '');
         setNotes(b.notes || '');
@@ -197,7 +230,7 @@ export const NewBill = () => {
     };
 
     loadBillForEditing();
-  }, [editBillId]);
+  }, [editBillId, typeParam]);
 
   // When customer changes, automatically update Previous Balance & its Date instantly
   const handleSelectCustomer = (cust) => {
@@ -226,6 +259,36 @@ export const NewBill = () => {
     }
 
     // Move focus to first vegetable particulars cell immediately
+    setTimeout(() => {
+      cellRefs.current[0]?.particulars?.focus();
+    }, 10);
+  };
+
+  // Seamless switch between Customer and Supplier mode without page navigation
+  const handleSwitchPartyType = (type) => {
+    if (type === partyType) return;
+    if (isEditMode) return;
+    setPartyType(type);
+    setSelectedCustomer(null);
+    setSelectedSupplier(null);
+    setCustomerName('');
+    setCustomerPhone('');
+    setPreviousBalance(0);
+    setPreviousBalanceDate('');
+    setError('');
+    setSuccessMsg('');
+    setTimeout(() => {
+      customerInputRef.current?.focus();
+    }, 50);
+  };
+
+  // When supplier changes, update Previous Balance & Phone instantly
+  const handleSelectSupplier = (supp) => {
+    setSelectedSupplier(supp);
+    setCustomerName(supp.name || '');
+    setCustomerPhone(supp.phone || '');
+    setPreviousBalance(round2(supp.currentBalance || 0));
+    setPreviousBalanceDate('');
     setTimeout(() => {
       cellRefs.current[0]?.particulars?.focus();
     }, 10);
@@ -391,6 +454,7 @@ export const NewBill = () => {
   const handleReset = () => {
     if (window.confirm('Clear current bill form?')) {
       setSelectedCustomer(null);
+      setSelectedSupplier(null);
       setCustomerName('');
       setCustomerPhone('');
       setPreviousBalance(0);
@@ -402,9 +466,15 @@ export const NewBill = () => {
       setItems(createInitialRows(DEFAULT_ROW_COUNT));
       setError('');
       setSuccessMsg('');
-      api.get('/bills/next-number').then((res) => {
-        if (res.success) setNextBillInfo(res);
-      });
+      if (partyType === 'supplier') {
+        api.get('/purchases/next-number').then((res) => {
+          if (res.success) setNextPurchaseInfo(res);
+        });
+      } else {
+        api.get('/bills/next-number').then((res) => {
+          if (res.success) setNextBillInfo(res);
+        });
+      }
       customerInputRef.current?.focus();
     }
   };
@@ -413,9 +483,9 @@ export const NewBill = () => {
   const handleSubmitBill = async (options = { autoPrint: false }) => {
     if (loading) return null; // Prevent duplicate submissions
 
-    const finalCustName = customerName.trim() || selectedCustomer?.name || '';
-    if (!finalCustName) {
-      setError('Please select or enter customer name');
+    const finalName = customerName.trim() || (partyType === 'supplier' ? selectedSupplier?.name : selectedCustomer?.name) || '';
+    if (!finalName) {
+      setError(partyType === 'supplier' ? 'Please select or enter supplier name' : 'Please select or enter customer name');
       return null;
     }
 
@@ -445,104 +515,209 @@ export const NewBill = () => {
       setLoading(true);
       setError('');
 
-      if (isEditMode) {
-        const updatePayload = {
-          billDate,
-          items: validItems.map((it) => ({
-            vegetable: it.vegetable || null,
-            particulars: it.particulars.trim(),
-            tamilName: (it.tamilName || '').trim(),
-            rate: Number(it.rate) || 0,
-            bag: Number(it.bag) || 0,
-            weight: Number(it.weight) || 0,
-            amount: Number(it.amount) || 0,
-          })),
-          discount: parsedDiscount,
-          varavu: parsedVaravu,
-          cashReceived: parsedVaravu,
-          notes: notes.trim(),
-          version: editingBill?.version,
-        };
+      if (partyType === 'supplier') {
+        // ==========================================
+        // SUPPLIER PURCHASE SAVE / UPDATE
+        // ==========================================
+        if (isEditMode) {
+          const updatePayload = {
+            purchaseDate: billDate,
+            items: validItems.map((it) => ({
+              vegetable: it.vegetable || null,
+              particulars: it.particulars.trim(),
+              tamilName: (it.tamilName || '').trim(),
+              rate: Number(it.rate) || 0,
+              bag: Number(it.bag) || 0,
+              weight: Number(it.weight) || 0,
+              amount: Number(it.amount) || 0,
+            })),
+            discount: parsedDiscount,
+            varavu: parsedVaravu,
+            cashPaid: parsedVaravu,
+            notes: notes.trim(),
+            version: editingBill?.version,
+          };
 
-        const res = await api.put(`/bills/${editBillId}`, updatePayload);
+          const res = await api.put(`/purchases/${editBillId}`, updatePayload);
 
-        if (res.success && res.data) {
-          const displayBillNum = res.data.billNumberFormatted || editingBill?.billNumberFormatted || `#${editingBill?.billNumber}`;
-          setSuccessMsg(`Bill #${displayBillNum} updated successfully!`);
-          setEditingBill(res.data);
+          if (res.success && res.data) {
+            const displayNum = res.data.purchaseNumberFormatted || editingBill?.purchaseNumberFormatted || `#${editingBill?.purchaseNumber}`;
+            setSuccessMsg(`Purchase #${displayNum} updated successfully!`);
+            setEditingBill(res.data);
 
-          if (options.autoPrint) {
-            setAutoPrint(true);
-            setPrintModalBill(res.data);
+            if (options.autoPrint) {
+              setAutoPrint(true);
+              setPrintModalBill(res.data);
+            }
+            return res.data;
           }
-          return res.data;
+        } else {
+          const purchasePayload = {
+            supplierId: selectedSupplier?._id || null,
+            supplierName: finalName,
+            supplierPhone: customerPhone.trim(),
+            purchaseDate: billDate,
+            items: validItems.map((it) => ({
+              vegetable: it.vegetable || null,
+              particulars: it.particulars.trim(),
+              tamilName: (it.tamilName || '').trim(),
+              rate: Number(it.rate) || 0,
+              bag: Number(it.bag) || 0,
+              weight: Number(it.weight) || 0,
+              amount: Number(it.amount) || 0,
+            })),
+            previousBalance: parsedPrevBalance,
+            discount: parsedDiscount,
+            varavu: parsedVaravu,
+            cashPaid: parsedVaravu,
+            todayTotal,
+            grandTotal: total,
+            closingBalance,
+            notes: notes.trim(),
+          };
+
+          const res = await api.post('/purchases', purchasePayload);
+
+          if (res.success && res.data) {
+            setSuccessMsg(`Purchase #${res.data.purchaseNumberFormatted} saved successfully!`);
+
+            if (res.data.purchaseNumber) {
+              const nextNum = res.data.purchaseNumber + 1;
+              setNextPurchaseInfo({
+                nextPurchaseNumber: nextNum,
+                formattedPurchaseNumber: `PUR-${String(nextNum).padStart(4, '0')}`,
+              });
+            }
+
+            api.get('/purchases/next-number').then((nRes) => {
+              if (nRes.success) setNextPurchaseInfo(nRes);
+            });
+
+            if (options.autoPrint) {
+              setAutoPrint(true);
+              setPrintModalBill(res.data);
+            } else {
+              setSelectedCustomer(null);
+              setSelectedSupplier(null);
+              setCustomerName('');
+              setCustomerPhone('');
+              setPreviousBalance(0);
+              setPreviousBalanceDate('');
+              setCashReceived('');
+              setDiscount('');
+              setVaravu('');
+              setNotes('');
+              setItems(createInitialRows(DEFAULT_ROW_COUNT));
+              customerInputRef.current?.focus();
+            }
+
+            return res.data;
+          }
         }
       } else {
-        const billPayload = {
-          customerId: selectedCustomer?._id || null,
-          customerName: finalCustName,
-          customerPhone: customerPhone.trim(),
-          billDate,
-          items: validItems.map((it) => ({
-            vegetable: it.vegetable || null,
-            particulars: it.particulars.trim(),
-            tamilName: (it.tamilName || '').trim(),
-            rate: Number(it.rate) || 0,
-            bag: Number(it.bag) || 0,
-            weight: Number(it.weight) || 0,
-            amount: Number(it.amount) || 0,
-          })),
-          previousBalance: parsedPrevBalance,
-          previousBalanceDate: previousBalanceDate || null,
-          discount: parsedDiscount,
-          varavu: parsedVaravu,
-          cashReceived: parsedVaravu,
-          todayTotal,
-          grandTotal: total,
-          closingBalance,
-          billVersion: 'v3_new_6row',
-          notes: notes.trim(),
-        };
+        // ==========================================
+        // CUSTOMER BILL SAVE / UPDATE
+        // ==========================================
+        if (isEditMode) {
+          const updatePayload = {
+            billDate,
+            items: validItems.map((it) => ({
+              vegetable: it.vegetable || null,
+              particulars: it.particulars.trim(),
+              tamilName: (it.tamilName || '').trim(),
+              rate: Number(it.rate) || 0,
+              bag: Number(it.bag) || 0,
+              weight: Number(it.weight) || 0,
+              amount: Number(it.amount) || 0,
+            })),
+            discount: parsedDiscount,
+            varavu: parsedVaravu,
+            cashReceived: parsedVaravu,
+            notes: notes.trim(),
+            version: editingBill?.version,
+          };
 
-        const res = await api.post('/bills', billPayload);
+          const res = await api.put(`/bills/${editBillId}`, updatePayload);
 
-        if (res.success && res.data) {
-          setSuccessMsg(`Bill #${res.data.billNumberFormatted} saved successfully!`);
+          if (res.success && res.data) {
+            const displayBillNum = res.data.billNumberFormatted || editingBill?.billNumberFormatted || `#${editingBill?.billNumber}`;
+            setSuccessMsg(`Bill #${displayBillNum} updated successfully!`);
+            setEditingBill(res.data);
 
-          // Optimistically increment next bill number locally
-          if (res.data.billNumber) {
-            const nextNum = res.data.billNumber + 1;
-            const prefix = settings.billPrefix || 'CPN';
-            setNextBillInfo({
-              nextBillNumber: nextNum,
-              formattedBillNumber: `${prefix}-${String(nextNum).padStart(4, '0')}`,
+            if (options.autoPrint) {
+              setAutoPrint(true);
+              setPrintModalBill(res.data);
+            }
+            return res.data;
+          }
+        } else {
+          const billPayload = {
+            customerId: selectedCustomer?._id || null,
+            customerName: finalName,
+            customerPhone: customerPhone.trim(),
+            billDate,
+            items: validItems.map((it) => ({
+              vegetable: it.vegetable || null,
+              particulars: it.particulars.trim(),
+              tamilName: (it.tamilName || '').trim(),
+              rate: Number(it.rate) || 0,
+              bag: Number(it.bag) || 0,
+              weight: Number(it.weight) || 0,
+              amount: Number(it.amount) || 0,
+            })),
+            previousBalance: parsedPrevBalance,
+            previousBalanceDate: previousBalanceDate || null,
+            discount: parsedDiscount,
+            varavu: parsedVaravu,
+            cashReceived: parsedVaravu,
+            todayTotal,
+            grandTotal: total,
+            closingBalance,
+            billVersion: 'v3_new_6row',
+            notes: notes.trim(),
+          };
+
+          const res = await api.post('/bills', billPayload);
+
+          if (res.success && res.data) {
+            setSuccessMsg(`Bill #${res.data.billNumberFormatted} saved successfully!`);
+
+            // Optimistically increment next bill number locally
+            if (res.data.billNumber) {
+              const nextNum = res.data.billNumber + 1;
+              const prefix = settings.billPrefix || 'CPN';
+              setNextBillInfo({
+                nextBillNumber: nextNum,
+                formattedBillNumber: `${prefix}-${String(nextNum).padStart(4, '0')}`,
+              });
+            }
+
+            // Background synchronization
+            api.get('/bills/next-number').then((nRes) => {
+              if (nRes.success) setNextBillInfo(nRes);
             });
+
+            if (options.autoPrint) {
+              setAutoPrint(true);
+              setPrintModalBill(res.data);
+            } else {
+              // Instant form reset for seamless Save & New continuous billing
+              setSelectedCustomer(null);
+              setSelectedSupplier(null);
+              setCustomerName('');
+              setCustomerPhone('');
+              setPreviousBalance(0);
+              setPreviousBalanceDate('');
+              setCashReceived('');
+              setDiscount('');
+              setVaravu('');
+              setNotes('');
+              setItems(createInitialRows(DEFAULT_ROW_COUNT));
+              customerInputRef.current?.focus();
+            }
+
+            return res.data;
           }
-
-          // Background synchronization
-          api.get('/bills/next-number').then((nRes) => {
-            if (nRes.success) setNextBillInfo(nRes);
-          });
-
-          if (options.autoPrint) {
-            setAutoPrint(true);
-            setPrintModalBill(res.data);
-          } else {
-            // Instant form reset for seamless Save & New continuous billing
-            setSelectedCustomer(null);
-            setCustomerName('');
-            setCustomerPhone('');
-            setPreviousBalance(0);
-            setPreviousBalanceDate('');
-            setCashReceived('');
-            setDiscount('');
-            setVaravu('');
-            setNotes('');
-            setItems(createInitialRows(DEFAULT_ROW_COUNT));
-            customerInputRef.current?.focus();
-          }
-
-          return res.data;
         }
       }
     } catch (err) {
@@ -559,8 +734,9 @@ export const NewBill = () => {
     if (isEditMode) {
       return;
     }
-    // Reset form for next customer
+    // Reset form for next party
     setSelectedCustomer(null);
+    setSelectedSupplier(null);
     setCustomerName('');
     setCustomerPhone('');
     setPreviousBalance(0);
@@ -586,30 +762,54 @@ export const NewBill = () => {
         <div className="flex items-center gap-3">
           <div
             className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              isEditMode ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-[#034D28]'
+              isEditMode
+                ? 'bg-blue-100 text-blue-700'
+                : partyType === 'supplier'
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-emerald-100 text-[#034D28]'
             }`}
           >
-            {isEditMode ? <Edit2 className="w-5 h-5" /> : <Sparkles className="w-5 h-5" />}
+            {isEditMode ? (
+              <Edit2 className="w-5 h-5" />
+            ) : partyType === 'supplier' ? (
+              <Truck className="w-5 h-5" />
+            ) : (
+              <Sparkles className="w-5 h-5" />
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-black text-gray-900 tracking-tight">
-                {isEditMode ? 'Edit Vegetable Bill / பில் திருத்துதல்' : 'New Vegetable Bill / புதிய பில்'}
+                {isEditMode
+                  ? partyType === 'supplier'
+                    ? 'Edit Purchase Bill / கொள்முதல் பில் திருத்துதல்'
+                    : 'Edit Vegetable Bill / பில் திருத்துதல்'
+                  : partyType === 'supplier'
+                  ? 'New Purchase Bill / கொள்முதல் பில்'
+                  : 'New Vegetable Bill / புதிய பில்'}
               </h1>
               {isEditMode ? (
                 <span className="bg-blue-600 text-white text-xs px-2.5 py-0.5 rounded-full font-mono font-bold flex items-center gap-1 shadow-xs">
                   <Edit2 className="w-3 h-3" />
-                  Editing {editingBill?.billNumberFormatted || (editingBill ? `CPN-${String(editingBill.billNumber).padStart(4, '0')}` : '...')}
+                  Editing {editingBill?.purchaseNumberFormatted || editingBill?.billNumberFormatted || (editingBill ? `CPN-${String(editingBill.billNumber).padStart(4, '0')}` : '...')}
                 </span>
               ) : (
-                <span className="bg-[#034D28] text-white text-xs px-2.5 py-0.5 rounded-full font-mono font-bold">
-                  {nextBillInfo.formattedBillNumber}
+                <span
+                  className={`text-white text-xs px-2.5 py-0.5 rounded-full font-mono font-bold ${
+                    partyType === 'supplier' ? 'bg-amber-800' : 'bg-[#034D28]'
+                  }`}
+                >
+                  {partyType === 'supplier'
+                    ? nextPurchaseInfo.formattedPurchaseNumber
+                    : nextBillInfo.formattedBillNumber}
                 </span>
               )}
             </div>
             <p className="text-xs text-gray-500 font-medium">
               {isEditMode
                 ? 'Modify items, rates, weights, or cash received. Original bill number is preserved.'
+                : partyType === 'supplier'
+                ? 'Enter key navigates columns. Supplier purchase bill will be recorded under PUR-XXXX.'
                 : 'Enter key navigates columns. Select or add vegetables dynamically.'}
             </p>
           </div>
@@ -692,21 +892,76 @@ export const NewBill = () => {
 
       {/* Customer & Bill Meta Details Header */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 grid grid-cols-1 md:grid-cols-12 gap-4">
-        {/* Customer Search Autocomplete */}
+        {/* Party Type Toggle Selector (Customer vs Supplier) */}
+        {!isEditMode && (
+          <div className="md:col-span-12 flex items-center justify-between gap-3 pb-3 border-b border-gray-100 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bill For:</span>
+              <div className="inline-flex p-1 bg-gray-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchPartyType('customer')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    partyType === 'customer'
+                      ? 'bg-[#034D28] text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <UserCheck className="w-3.5 h-3.5" />
+                  <span>Customer / வாடிக்கையாளர்</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchPartyType('supplier')}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    partyType === 'supplier'
+                      ? 'bg-amber-800 text-white shadow-xs'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Truck className="w-3.5 h-3.5" />
+                  <span>Supplier / சப்ளையர்</span>
+                </button>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-gray-400 font-mono-num">
+              {partyType === 'supplier' ? 'Mode: Supplier Purchase (PUR)' : 'Mode: Customer Sales (CPN)'}
+            </span>
+          </div>
+        )}
+
+        {/* Customer / Supplier Search Autocomplete */}
         <div className="md:col-span-6 space-y-1">
           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-            Customer / திரு: <span className="text-red-500">*</span>
+            {partyType === 'supplier' ? (
+              <>SUPPLIER / சப்ளையர்: <span className="text-red-500">*</span></>
+            ) : (
+              <>CUSTOMER / திரு: <span className="text-red-500">*</span></>
+            )}
           </label>
           {isEditMode ? (
-            <div className="w-full px-3 py-2 border border-blue-200 bg-blue-50/50 rounded-xl text-sm flex items-center justify-between min-h-[42px]">
+            <div className={`w-full px-3 py-2 border rounded-xl text-sm flex items-center justify-between min-h-[42px] ${
+              partyType === 'supplier' ? 'border-amber-200 bg-amber-50/50' : 'border-blue-200 bg-blue-50/50'
+            }`}>
               <div>
-                <span className="font-bold text-gray-900 block">{customerName || 'Customer'}</span>
+                <span className="font-bold text-gray-900 block">{customerName || (partyType === 'supplier' ? 'Supplier' : 'Customer')}</span>
                 {customerPhone && <span className="text-xs text-gray-500 font-mono-num">{customerPhone}</span>}
               </div>
-              <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
-                Customer Locked
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                partyType === 'supplier' ? 'text-amber-800 bg-amber-100' : 'text-blue-700 bg-blue-100'
+              }`}>
+                {partyType === 'supplier' ? 'Supplier Locked' : 'Customer Locked'}
               </span>
             </div>
+          ) : partyType === 'supplier' ? (
+            <SupplierAutocomplete
+              inputRef={customerInputRef}
+              suppliers={suppliers}
+              selectedSupplier={selectedSupplier}
+              onSelectSupplier={handleSelectSupplier}
+              onTextChange={(val) => setCustomerName(val)}
+              onEnterNext={() => cellRefs.current[0]?.particulars?.focus()}
+            />
           ) : (
             <CustomerAutocomplete
               inputRef={customerInputRef}

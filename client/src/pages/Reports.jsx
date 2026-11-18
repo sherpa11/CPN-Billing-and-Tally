@@ -572,24 +572,26 @@ export const Reports = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs md:text-sm border-collapse">
+                <table className="w-full text-xs md:text-sm border-collapse report-outstanding-table">
                   <thead>
                     <tr className="bg-gray-100 border-b text-gray-700 font-bold uppercase text-[11px]">
                       <th className="py-2.5 px-3 text-center w-12">#</th>
-                      <th className="py-2.5 px-3 text-left">Customer Name</th>
-                      <th className="py-2.5 px-3 text-left">Tamil Name</th>
-                      <th className="py-2.5 px-3 text-left">Mobile</th>
-                      <th className="py-2.5 px-3 text-right">Outstanding Balance (₹)</th>
+                      <th className="py-2.5 px-3 text-left w-[34%] min-w-[180px]">Customer Name</th>
+                      <th className="py-2.5 px-3 text-left w-[22%]">Tamil Name</th>
+                      <th className="py-2.5 px-3 text-left w-[18%]">Mobile</th>
+                      <th className="py-2.5 px-3 text-right w-[26%] min-w-[150px]">Outstanding Balance (₹)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {outstandingCustomers.map((c, idx) => (
                       <tr key={c._id} className="hover:bg-gray-50">
                         <td className="py-2 px-3 text-center font-mono-num text-gray-500">{idx + 1}</td>
-                        <td className="py-2 px-3 font-bold text-gray-900">{c.name}</td>
-                        <td className="py-2 px-3 font-tamil text-emerald-800">{c.tamilName || '-'}</td>
-                        <td className="py-2 px-3 font-mono-num text-gray-600">{c.phone || '-'}</td>
-                        <td className="py-2 px-3 text-right font-mono-num font-black text-amber-800 text-base">
+                        <td className="py-2.5 px-3 report-customer-name font-black text-gray-950 text-base md:text-lg tracking-tight">
+                          {c.name}
+                        </td>
+                        <td className="py-2 px-3 font-tamil text-emerald-800 text-sm font-semibold">{c.tamilName || '-'}</td>
+                        <td className="py-2 px-3 font-mono-num text-gray-600 text-xs font-bold">{c.phone || '-'}</td>
+                        <td className="py-2.5 px-3 text-right report-outstanding-amount font-mono-num font-black text-amber-900 text-base md:text-lg whitespace-nowrap">
                           ₹{formatCurrency(c.currentBalance)}
                         </td>
                       </tr>
@@ -597,10 +599,10 @@ export const Reports = () => {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100 text-gray-900 font-extrabold border-t-2 border-gray-400">
-                      <td colSpan="4" className="py-2.5 px-3 text-left">
+                      <td colSpan="4" className="py-3 px-3 text-left font-black text-sm md:text-base">
                         TOTAL ({outstandingCustomers.length} Customers)
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono-num font-black text-amber-800 text-base">
+                      <td className="py-3 px-3 text-right report-outstanding-total font-mono-num font-black text-amber-900 text-lg md:text-xl whitespace-nowrap">
                         ₹{formatCurrency(outstandingData?.totalOutstanding || outstandingCustomers.reduce((acc, c) => acc + (c.currentBalance || 0), 0))}
                       </td>
                     </tr>

@@ -15,6 +15,7 @@ import {
   Wifi,
   WifiOff,
   Printer,
+  Truck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -89,6 +90,7 @@ export const Layout = () => {
     { name: 'New Bill (F2)', path: '/new-bill', icon: PlusCircle, highlight: true },
     { name: 'All Bills', path: '/bills', icon: Receipt },
     { name: 'Customers', path: '/customers', icon: Users },
+    { name: 'Purchase / கொள்முதல்', path: '/purchases', icon: Truck },
     { name: 'Vegetables', path: '/vegetables', icon: Carrot },
     { name: 'Payments', path: '/payments', icon: Wallet },
     { name: 'Reports', path: '/reports', icon: BarChart3 },

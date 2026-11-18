@@ -231,12 +231,12 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   height: '4.00%',
                   boxSizing: 'border-box',
                 }}
-                title={bill.customerName || bill.customer?.name}
+                title={bill.customerName || bill.supplierName || bill.customer?.name || bill.supplier?.name}
               >
-                <span className="truncate">{bill.customerName || bill.customer?.name || ''}</span>
-                {bill.customerPhone && (
+                <span className="truncate">{bill.customerName || bill.supplierName || bill.customer?.name || bill.supplier?.name || ''}</span>
+                {(bill.customerPhone || bill.supplierPhone) && (
                   <span className="font-mono-num font-bold text-gray-800 text-[13px] ml-1.5 flex-shrink-0">
-                    ({bill.customerPhone})
+                    ({bill.customerPhone || bill.supplierPhone})
                   </span>
                 )}
                 {page.pageNumber > 1 && (
@@ -257,7 +257,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   boxSizing: 'border-box',
                 }}
               >
-                {formatDate(bill.billDate)}
+                {formatDate(bill.billDate || bill.purchaseDate)}
               </div>
 
               {/* 3. VEGETABLE ENTRIES (inside 5-column table body) */}
