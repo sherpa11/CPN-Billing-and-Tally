@@ -60,7 +60,7 @@ async function runSuite() {
   runTest('1.1 Reports.jsx: Customer Name column has enlarged, bold classes', () => {
     assert(
       reportsContent.includes('report-customer-name') &&
-      reportsContent.includes('font-black text-gray-950 text-base md:text-lg'),
+      reportsContent.includes('font-black text-gray-950 text-lg md:text-xl'),
       'Customer name column should have prominent bold font and enlarged sizing classes'
     );
   });
@@ -68,7 +68,7 @@ async function runSuite() {
   runTest('1.2 Reports.jsx: Outstanding Balance column has enlarged, prominent styling', () => {
     assert(
       reportsContent.includes('report-outstanding-amount') &&
-      reportsContent.includes('font-mono-num font-black text-amber-900 text-base md:text-lg'),
+      reportsContent.includes('font-mono-num font-black text-amber-900 text-lg md:text-xl'),
       'Outstanding balance column should have prominent bold amber font and enlarged sizing classes'
     );
   });
@@ -85,18 +85,18 @@ async function runSuite() {
   runTest('1.4 index.css: Print CSS contains high-contrast print overrides for report customer name', () => {
     assert(
       cssContent.includes('.report-customer-name') &&
-      cssContent.includes('font-size: 15px !important;') &&
+      cssContent.includes('font-size: 20px !important;') &&
       cssContent.includes('font-weight: 900 !important;'),
-      'index.css must enforce 15px 900-weight for customer names when printing reports'
+      'index.css must enforce 20px 900-weight for customer names when printing reports in A4'
     );
   });
 
   runTest('1.5 index.css: Print CSS contains enlarged font for report outstanding amounts', () => {
     assert(
       cssContent.includes('.report-outstanding-amount') &&
-      cssContent.includes('font-size: 16px !important;') &&
+      cssContent.includes('font-size: 22px !important;') &&
       cssContent.includes('font-weight: 900 !important;'),
-      'index.css must enforce 16px 900-weight for outstanding amounts when printing reports'
+      'index.css must enforce 22px 900-weight for outstanding amounts when printing reports in A4'
     );
   });
 

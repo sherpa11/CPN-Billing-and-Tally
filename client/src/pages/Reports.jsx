@@ -69,7 +69,6 @@ export const Reports = () => {
     };
     window.addEventListener('afterprint', cleanup);
     window.print();
-    setTimeout(cleanup, 2000);
   };
 
   // Keyboard shortcut Ctrl+P / window print lifecycle hook
@@ -585,13 +584,19 @@ export const Reports = () => {
                   <tbody className="divide-y divide-gray-100">
                     {outstandingCustomers.map((c, idx) => (
                       <tr key={c._id} className="hover:bg-gray-50">
-                        <td className="py-2 px-3 text-center font-mono-num text-gray-500">{idx + 1}</td>
-                        <td className="py-2.5 px-3 report-customer-name font-black text-gray-950 text-base md:text-lg tracking-tight">
+                        <td className="py-2.5 px-3 text-center font-mono-num font-bold text-gray-600 report-col-idx text-sm md:text-base">
+                          {idx + 1}
+                        </td>
+                        <td className="py-2.5 px-3 report-customer-name font-black text-gray-950 text-lg md:text-xl tracking-tight">
                           {c.name}
                         </td>
-                        <td className="py-2 px-3 font-tamil text-emerald-800 text-sm font-semibold">{c.tamilName || '-'}</td>
-                        <td className="py-2 px-3 font-mono-num text-gray-600 text-xs font-bold">{c.phone || '-'}</td>
-                        <td className="py-2.5 px-3 text-right report-outstanding-amount font-mono-num font-black text-amber-900 text-base md:text-lg whitespace-nowrap">
+                        <td className="py-2.5 px-3 font-tamil text-emerald-900 font-bold report-col-tamil text-base md:text-lg">
+                          {c.tamilName || '-'}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono-num text-gray-800 font-bold report-col-phone text-sm md:text-base">
+                          {c.phone || '-'}
+                        </td>
+                        <td className="py-2.5 px-3 text-right report-outstanding-amount font-mono-num font-black text-amber-900 text-lg md:text-xl whitespace-nowrap">
                           ₹{formatCurrency(c.currentBalance)}
                         </td>
                       </tr>
@@ -599,10 +604,10 @@ export const Reports = () => {
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100 text-gray-900 font-extrabold border-t-2 border-gray-400">
-                      <td colSpan="4" className="py-3 px-3 text-left font-black text-sm md:text-base">
+                      <td colSpan="4" className="py-3 px-3 text-left font-black text-base md:text-lg">
                         TOTAL ({outstandingCustomers.length} Customers)
                       </td>
-                      <td className="py-3 px-3 text-right report-outstanding-total font-mono-num font-black text-amber-900 text-lg md:text-xl whitespace-nowrap">
+                      <td className="py-3 px-3 text-right report-outstanding-total font-mono-num font-black text-amber-900 text-xl md:text-2xl whitespace-nowrap">
                         ₹{formatCurrency(outstandingData?.totalOutstanding || outstandingCustomers.reduce((acc, c) => acc + (c.currentBalance || 0), 0))}
                       </td>
                     </tr>

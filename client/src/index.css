@@ -210,55 +210,96 @@ body.print-bill-active #print-root {
     break-inside: avoid !important;
   }
 
-  body.print-report-active th {
+  body.print-report-active th,
+  body:not(.print-bill-active) .report-outstanding-table th {
     background-color: #034D28 !important;
     color: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    border: 1px solid #02381c !important;
-    padding: 6px 8px !important;
-    font-size: 11px !important;
-    font-weight: 800 !important;
+    border: 1.5px solid #02381c !important;
+    padding: 10px 8px !important;
+    font-size: 14px !important;
+    font-weight: 900 !important;
     text-transform: uppercase !important;
     letter-spacing: 0.02em !important;
   }
 
-  body.print-report-active td {
-    border: 1px solid #d1d5db !important;
-    padding: 5px 8px !important;
-    font-size: 11px !important;
+  body.print-report-active td,
+  body:not(.print-bill-active) .report-outstanding-table td {
+    border: 1px solid #9ca3af !important;
+    padding: 8px 10px !important;
+    font-size: 14px !important;
     color: #111827 !important;
   }
 
-  /* Significantly enlarged, bold typography for Customer Name & Outstanding Balance in print */
-  body.print-report-active .report-customer-name {
-    font-size: 15px !important;
+  /* Significantly enlarged, bold typography for Customer Name & Outstanding Balance in A4 print */
+  body.print-report-active .report-customer-name,
+  body:not(.print-bill-active) .report-customer-name,
+  .report-customer-name,
+  table.report-outstanding-table td.report-customer-name {
+    font-size: 20px !important;
     font-weight: 900 !important;
     color: #000000 !important;
-    line-height: 1.25 !important;
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
-  }
-
-  body.print-report-active .report-outstanding-amount {
-    font-size: 16px !important;
-    font-weight: 900 !important;
-    color: #78350f !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    line-height: 1.3 !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
     letter-spacing: -0.01em !important;
-    padding-top: 7px !important;
-    padding-bottom: 7px !important;
-    white-space: nowrap !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  body.print-report-active .report-outstanding-total {
-    font-size: 17px !important;
+  body.print-report-active .report-outstanding-amount,
+  body:not(.print-bill-active) .report-outstanding-amount,
+  .report-outstanding-amount,
+  table.report-outstanding-table td.report-outstanding-amount {
+    font-size: 22px !important;
     font-weight: 900 !important;
     color: #78350f !important;
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
+    font-family: Arial, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    letter-spacing: -0.02em !important;
+    padding-top: 10px !important;
+    padding-bottom: 10px !important;
     white-space: nowrap !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body.print-report-active .report-outstanding-total,
+  body:not(.print-bill-active) .report-outstanding-total,
+  .report-outstanding-total,
+  table.report-outstanding-table td.report-outstanding-total {
+    font-size: 24px !important;
+    font-weight: 900 !important;
+    color: #78350f !important;
+    font-family: Arial, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+    white-space: nowrap !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .report-col-idx,
+  body.print-report-active .report-col-idx {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    color: #374151 !important;
+  }
+
+  .report-col-tamil,
+  body.print-report-active .report-col-tamil {
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    color: #064e3b !important;
+    line-height: 1.3 !important;
+  }
+
+  .report-col-phone,
+  body.print-report-active .report-col-phone {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+    color: #1f2937 !important;
+    font-family: Arial, ui-monospace, monospace !important;
   }
 
   body.print-report-active tbody tr:nth-child(even) {
