@@ -408,29 +408,37 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     {formatCurrency(total)}
                   </div>
 
-                  {/* Row 4: தள்ளுபடி (Discount) note next to ரொக்கம் பெற்றது if present */}
-                  {discount > 0 && (
-                    <div
-                      className="absolute flex items-center justify-end pr-1 font-mono-num font-bold text-amber-900 text-[11px] whitespace-nowrap"
-                      style={{
-                        left: '34.0%',
-                        top: '85.35%',
-                        width: '32.0%',
-                        height: '3.61%',
-                      }}
-                    >
-                      (தள்ளுபடி: ₹{formatCurrency(discount)})
-                    </div>
-                  )}
-
-                  {/* Row 4: ரொக்கம் பெற்றது / வரவு (Cash Received) Amount - Y=874..911px (85.35%..88.96%) */}
+                  {/* Row 4: செலுத்திய தொகை (Amount Paid) Label & Discount Note */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[15px]"
+                    className="absolute flex items-center justify-between pl-2.5 pr-1.5"
+                    style={{
+                      left: '2.15%',
+                      top: '85.45%',
+                      width: '64.55%',
+                      height: '3.45%',
+                      backgroundColor: '#ffffff',
+                      zIndex: 2,
+                    }}
+                  >
+                    <span className="font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal select-none">
+                      செலுத்திய தொகை :
+                    </span>
+                    {discount > 0 && (
+                      <span className="font-mono-num font-bold text-amber-900 text-[12px] whitespace-nowrap ml-1">
+                        (தள்ளுபடி: ₹{formatCurrency(discount)})
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Row 4: செலுத்திய தொகை (Amount Paid) Value - Increased font size and font-black */}
+                  <div
+                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]"
                     style={{
                       left: '66.85%',
                       top: '85.35%',
                       width: '31.42%',
                       height: '3.61%',
+                      zIndex: 2,
                     }}
                   >
                     {formatCurrency(varavu)}

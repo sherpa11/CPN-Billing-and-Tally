@@ -156,6 +156,31 @@ async function runSuite() {
     );
   });
 
+  const billTemplatePath = path.resolve(__dirname, '../../client/src/components/BillPrintTemplate.jsx');
+  const billTemplateContent = fs.readFileSync(billTemplatePath, 'utf8');
+
+  runTest('2.6 BillPrintTemplate.jsx: Row 4 label changed to செலுத்திய தொகை with enlarged font size and value', () => {
+    assert(
+      billTemplateContent.includes('செலுத்திய தொகை :'),
+      'BillPrintTemplate must display செலுத்திய தொகை : for row 4'
+    );
+    assert(
+      billTemplateContent.includes('font-tamil font-black text-black text-[17px]'),
+      'BillPrintTemplate must render enlarged bold font for செலுத்திய தொகை label'
+    );
+    assert(
+      billTemplateContent.includes('font-mono-num font-black text-black text-[18px]'),
+      'BillPrintTemplate must render enlarged font-black text-[18px] for the value'
+    );
+  });
+
+  runTest('2.7 NewBill.jsx: Row 5 label updated to include செலுத்திய தொகை', () => {
+    assert(
+      newBillContent.includes('5. செலுத்திய தொகை'),
+      'NewBill form must display 5. செலுத்திய தொகை'
+    );
+  });
+
   // ----------------------------------------------------
   // SECTION 3: Isolated Database & Supplier Accounting
   // ----------------------------------------------------

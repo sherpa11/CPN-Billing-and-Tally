@@ -1238,11 +1238,13 @@ export const NewBill = () => {
                 <td className="no-print"></td>
               </tr>
 
-              {/* 5. VARAVU / வரவு */}
+              {/* 5. VARAVU / செலுத்திய தொகை */}
               <tr className="border-b border-gray-200 bg-white font-bold text-sm">
                 <td className="py-2.5 px-3">&nbsp;</td>
                 <td colSpan={3} className="py-2.5 px-3 text-left font-bold text-gray-800">
-                  5. வரவு : (Varavu / Cash Received)
+                  {partyType === 'supplier'
+                    ? '5. செலுத்திய தொகை : (Amount Paid)'
+                    : '5. செலுத்திய தொகை / வரவு : (Paid Amount / Varavu)'}
                 </td>
                 <td className="py-2.5 px-3 text-right">
                   <input
@@ -1255,7 +1257,7 @@ export const NewBill = () => {
                       setCashReceived(e.target.value);
                     }}
                     placeholder="0.00"
-                    className="w-full text-right py-1 px-2 font-mono-num font-extrabold text-emerald-800 border-2 border-emerald-400 rounded-lg focus:border-[#034D28] outline-none text-sm bg-emerald-50/50"
+                    className="w-full text-right py-1.5 px-2.5 font-mono-num font-black text-emerald-800 border-2 border-emerald-400 rounded-lg focus:border-[#034D28] outline-none text-base bg-emerald-50/50"
                   />
                 </td>
                 <td className="no-print"></td>
@@ -1458,7 +1460,9 @@ export const NewBill = () => {
           </div>
 
           <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100 gap-2">
-            <span className="font-bold text-gray-700">5. வரவு (Cash Received)</span>
+            <span className="font-bold text-gray-700">
+              {partyType === 'supplier' ? '5. செலுத்திய தொகை (Amount Paid)' : '5. செலுத்திய தொகை / வரவு (Paid Amount)'}
+            </span>
             <div className="w-32">
               <input
                 type="number"
@@ -1470,7 +1474,7 @@ export const NewBill = () => {
                   setCashReceived(e.target.value);
                 }}
                 placeholder="0.00"
-                className="w-full text-right py-1.5 px-2.5 font-mono-num font-bold text-emerald-800 border-2 border-emerald-400 rounded-lg outline-none text-sm bg-emerald-50/50"
+                className="w-full text-right py-1.5 px-2.5 font-mono-num font-black text-emerald-800 border-2 border-emerald-400 rounded-lg outline-none text-base bg-emerald-50/50"
               />
             </div>
           </div>
