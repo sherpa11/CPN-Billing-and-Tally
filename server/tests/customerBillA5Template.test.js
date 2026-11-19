@@ -132,6 +132,22 @@ async function runSuite() {
     );
   });
 
+  runTest('2.8 Customer bills: Dynamic font scaling on Row 4 label when discount > 0', () => {
+    assert.ok(
+      templateContent.includes('discount > 0') &&
+      templateContent.includes('text-[13px] sm:text-[13.5px] tracking-tight') &&
+      templateContent.includes('whitespace-nowrap'),
+      'Must dynamically reduce font size to text-[13px] sm:text-[13.5px] with whitespace-nowrap when discount > 0'
+    );
+  });
+
+  runTest('2.9 Customer bills: Retains prominent text-[17px] sm:text-[18px] when no discount is applied', () => {
+    assert.ok(
+      templateContent.includes('font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal'),
+      'Must retain prominent text-[17px] sm:text-[18px] font size when discount is 0'
+    );
+  });
+
   // ----------------------------------------------------
   // SECTION 3: Live Database & Accounting Validations
   // ----------------------------------------------------

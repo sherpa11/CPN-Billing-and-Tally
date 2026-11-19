@@ -452,7 +452,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   {/* Row 4: செலுத்திய தொகை (Amount Paid) Label & Discount Note */}
                   {!isSupplierBill && (
                     <div
-                      className="absolute flex items-center justify-between pl-3 pr-2"
+                      className="absolute flex items-center justify-between pl-2.5 pr-2"
                       style={{
                         left: '16.0%',
                         top: '85.25%',
@@ -462,11 +462,17 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                         zIndex: 2,
                       }}
                     >
-                      <span className="font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal select-none">
+                      <span
+                        className={`font-tamil font-black text-black whitespace-nowrap select-none leading-none ${
+                          discount > 0
+                            ? 'text-[13px] sm:text-[13.5px] tracking-tight'
+                            : 'font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal'
+                        }`}
+                      >
                         செலுத்திய தொகை :
                       </span>
                       {discount > 0 && (
-                        <span className="font-mono-num font-bold text-amber-900 text-[12px] whitespace-nowrap ml-1">
+                        <span className="font-mono-num font-bold text-amber-900 text-[11.5px] sm:text-[12px] whitespace-nowrap ml-1 flex-shrink-0">
                           (தள்ளுபடி: ₹{formatCurrency(discount)})
                         </span>
                       )}
