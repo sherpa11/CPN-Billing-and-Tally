@@ -32,12 +32,34 @@ const formatNumber = (num, decimals = 2) => {
 };
 
 // Helper to get adaptive row layout parameters inside the vegetable table area
-const getAdaptiveOverlayLayout = (itemCount) => {
+const getAdaptiveOverlayLayout = (itemCount, isSupplier = false) => {
+  if (isSupplier) {
+    if (itemCount <= 5) {
+      return {
+        rowHeightPercent: 4.6,
+        fontSizeParticulars: 'text-[11.5px] leading-tight font-bold',
+        fontSizeData: 'text-[11.5px] font-bold',
+        fontSizeAmount: 'text-[11.5px] font-black',
+        lineHeight: 'leading-normal',
+      };
+    } else {
+      // 6 to 10 items
+      return {
+        rowHeightPercent: 4.6,
+        fontSizeParticulars: 'text-[10.5px] leading-tight font-bold',
+        fontSizeData: 'text-[10.5px] font-bold',
+        fontSizeAmount: 'text-[10.5px] font-black',
+        lineHeight: 'leading-normal',
+      };
+    }
+  }
+
   if (itemCount <= 5) {
     return {
       rowHeightPercent: 4.5,
       fontSizeParticulars: 'text-[15px] leading-tight font-bold',
       fontSizeData: 'text-[15px] font-bold',
+      fontSizeAmount: 'text-[15px] font-black',
       lineHeight: 'leading-normal',
     };
   } else {
@@ -46,6 +68,7 @@ const getAdaptiveOverlayLayout = (itemCount) => {
       rowHeightPercent: 4.2,
       fontSizeParticulars: 'text-[13.5px] leading-tight font-bold',
       fontSizeData: 'text-[13.5px] font-bold',
+      fontSizeAmount: 'text-[13.5px] font-black',
       lineHeight: 'leading-normal',
     };
   }
@@ -163,7 +186,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
       ? bill.closingBalance
       : Math.round((total - discount - varavu) * 100) / 100;
 
-  // Multi-page splitting logic for A5 (10 items fit per page cleanly)
+  // Multi-page splitting logic (10 items fit per page cleanly)
   const ITEMS_PER_PAGE = 10;
   const totalPages = Math.max(1, Math.ceil(activeItems.length / ITEMS_PER_PAGE));
   const pages = [];
@@ -177,26 +200,35 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
     });
   }
 
-  // Table body start and end Y coordinates as percentages of 1024px canvas
-  const TABLE_TOP_PERCENT = 30.08; // Y = 308px (immediately below table header line)
+  // Resolved party name and contact
+  const partyName = isSupplierBill
+    ? bill.supplierName || bill.supplier?.name || bill.customerName || bill.customer?.name || ''
+    : bill.customerName || bill.customer?.name || bill.supplierName || bill.supplier?.name || '';
+
+  const partyPhone = isSupplierBill
+    ? bill.supplierPhone || bill.supplier?.phone || bill.supplier?.mobile || bill.customerPhone || bill.phone || ''
+    : bill.customerPhone || bill.customer?.phone || bill.customer?.mobile || bill.supplierPhone || bill.phone || '';
+
+  const billDateFormatted = formatDate(bill.billDate || bill.purchaseDate || bill.date || bill.createdAt);
 
   return (
     <div id="printable-bill" style={{ margin: 0, padding: 0 }}>
       {pages.map((page, pIdx) => {
-        const layout = getAdaptiveOverlayLayout(page.items.length);
+        const layout = getAdaptiveOverlayLayout(page.items.length, isSupplierBill);
+        const tableTop = isSupplierBill ? 29.8 : 30.08;
 
         return (
           <div
             key={`page-${pIdx}`}
-            className={`cpn-a5-bill select-none shadow-xl mb-6 last:mb-0 border border-gray-300 rounded-sm ${
-              !page.isFinalPage ? 'cpn-a5-bill-page-break' : ''
+            className={`${isSupplierBill ? 'cpn-a6-bill' : 'cpn-a5-bill'} select-none shadow-xl mb-6 last:mb-0 border border-gray-300 rounded-sm ${
+              !page.isFinalPage ? (isSupplierBill ? 'cpn-a6-bill-page-break' : 'cpn-a5-bill-page-break') : ''
             }`}
             style={{
               position: 'relative',
-              width: '148mm',
-              maxWidth: '148mm',
-              height: '210mm',
-              maxHeight: '210mm',
+              width: isSupplierBill ? '105mm' : '148mm',
+              maxWidth: isSupplierBill ? '105mm' : '148mm',
+              height: isSupplierBill ? '148mm' : '210mm',
+              maxHeight: isSupplierBill ? '148mm' : '210mm',
               margin: '0 auto',
               padding: 0,
               boxSizing: 'border-box',
@@ -205,11 +237,13 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
             }}
           >
             {/* ============================================================== */}
-            {/* BASE LAYER: ACTUAL ORIGINAL BLANK CPN VEGETABLES BILL IMAGE    */}
+            {/* BASE LAYER: ACTUAL ORIGINAL BLANK CPN BILL IMAGE TEMPLATE      */}
+            {/* Supplier: cpn_supplier_bill_template.jpg (A6: 105 × 148 mm)    */}
+            {/* Customer: cpn_blank_bill_template.jpg (A5: 148 × 210 mm)       */}
             {/* ============================================================== */}
             <img
-              src="/cpn_blank_bill_template.jpg"
-              alt="CPN Vegetables Bill Template"
+              src={isSupplierBill ? '/cpn_supplier_bill_template.jpg' : '/cpn_blank_bill_template.jpg'}
+              alt={isSupplierBill ? 'CPN Supplier Bill Template' : 'CPN Vegetables Bill Template'}
               className="w-full h-full block select-none pointer-events-none"
               style={{
                 width: '100%',
@@ -232,43 +266,55 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 height: '100%',
               }}
             >
-              {/* 1. CUSTOMER NAME (திரு: - X=76..476, Y=228..269) */}
+              {/* 1. PARTY NAME (திரு: - Supplier or Customer) */}
               <div
-                className="absolute flex items-center font-black text-black font-tamil text-[18px] leading-none truncate pl-1 pr-2"
+                className={`absolute flex items-center font-black text-black font-tamil leading-none truncate pl-1 pr-2 ${
+                  isSupplierBill ? 'text-[13.5px]' : 'text-[18px]'
+                }`}
                 style={{
-                  left: '10.5%',
-                  top: '22.27%',
-                  width: '55.0%',
-                  height: '4.00%',
+                  left: isSupplierBill ? '10.0%' : '10.5%',
+                  top: isSupplierBill ? '22.0%' : '22.27%',
+                  width: isSupplierBill ? '54.5%' : '55.0%',
+                  height: isSupplierBill ? '3.4%' : '4.00%',
                   boxSizing: 'border-box',
                 }}
-                title={bill.customerName || bill.supplierName || bill.customer?.name || bill.supplier?.name}
+                title={partyName}
               >
-                <span className="truncate">{bill.customerName || bill.supplierName || bill.customer?.name || bill.supplier?.name || ''}</span>
-                {(bill.customerPhone || bill.supplierPhone) && (
-                  <span className="font-mono-num font-bold text-gray-800 text-[13px] ml-1.5 flex-shrink-0">
-                    ({bill.customerPhone || bill.supplierPhone})
+                <span className="truncate">{partyName}</span>
+                {partyPhone && (
+                  <span
+                    className={`font-mono-num font-bold text-gray-800 ml-1.5 flex-shrink-0 ${
+                      isSupplierBill ? 'text-[10.5px]' : 'text-[13px]'
+                    }`}
+                  >
+                    ({partyPhone})
                   </span>
                 )}
                 {page.pageNumber > 1 && (
-                  <span className="text-[12px] font-bold text-[#034D28] ml-2 flex-shrink-0">
+                  <span
+                    className={`font-bold text-[#034D28] ml-2 flex-shrink-0 ${
+                      isSupplierBill ? 'text-[9.5px]' : 'text-[12px]'
+                    }`}
+                  >
                     (பக்கம் {page.pageNumber})
                   </span>
                 )}
               </div>
 
-              {/* 2. DATE (தேதி : - X=540..710, Y=228..269) */}
+              {/* 2. DATE (தேதி : - Date of Bill) */}
               <div
-                className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[15px] leading-none"
+                className={`absolute flex items-center justify-center font-mono-num font-bold text-gray-950 leading-none ${
+                  isSupplierBill ? 'text-[12px]' : 'text-[15px]'
+                }`}
                 style={{
-                  left: '74.6%',
-                  top: '22.27%',
-                  width: '23.4%',
-                  height: '4.00%',
+                  left: isSupplierBill ? '74.5%' : '74.6%',
+                  top: isSupplierBill ? '22.0%' : '22.27%',
+                  width: isSupplierBill ? '23.5%' : '23.4%',
+                  height: isSupplierBill ? '3.4%' : '4.00%',
                   boxSizing: 'border-box',
                 }}
               >
-                {formatDate(bill.billDate || bill.purchaseDate)}
+                {billDateFormatted}
               </div>
 
               {/* 3. VEGETABLE ENTRIES (inside 5-column table body) */}
@@ -280,7 +326,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     ? item.debit
                     : (item.rate || 0) * (item.weight || 0);
 
-                const rowTop = TABLE_TOP_PERCENT + idx * layout.rowHeightPercent;
+                const rowTop = tableTop + idx * layout.rowHeightPercent;
 
                 return (
                   <div
@@ -294,65 +340,65 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       boxSizing: 'border-box',
                     }}
                   >
-                    {/* Col 1: விலை (Rate) - 1.86% to 15.68% */}
+                    {/* Col 1: விலை (Rate) */}
                     <div
                       className={`flex items-center justify-center font-mono-num font-bold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '1.86%',
-                        width: '13.81%',
+                        left: isSupplierBill ? '1.54%' : '1.86%',
+                        width: isSupplierBill ? '13.91%' : '13.81%',
                         height: '100%',
                       }}
                     >
                       {item.rate > 0 ? formatNumber(item.rate) : ''}
                     </div>
 
-                    {/* Col 2: பொருள் (Particulars - Tamil Name) - 15.68% to 51.31% */}
+                    {/* Col 2: பொருள் (Particulars - Tamil Name) */}
                     <div
                       className={`flex items-center text-left pl-2.5 pr-1 font-tamil font-bold text-gray-950 truncate ${layout.fontSizeParticulars}`}
                       style={{
                         position: 'absolute',
-                        left: '15.68%',
-                        width: '35.64%',
+                        left: isSupplierBill ? '15.45%' : '15.68%',
+                        width: isSupplierBill ? '35.53%' : '35.64%',
                         height: '100%',
                       }}
                     >
                       <span className="truncate">{getVegetableDisplayName(item)}</span>
                     </div>
 
-                    {/* Col 3: பை (Bag) - 51.31% to 61.95% */}
+                    {/* Col 3: பை (Bag) */}
                     <div
                       className={`flex items-center justify-center font-mono-num font-bold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '51.31%',
-                        width: '10.64%',
+                        left: isSupplierBill ? '50.98%' : '51.31%',
+                        width: isSupplierBill ? '10.68%' : '10.64%',
                         height: '100%',
                       }}
                     >
                       {item.bag > 0 ? item.bag : ''}
                     </div>
 
-                    {/* Col 4: எடை (Weight) - 61.95% to 74.79% */}
+                    {/* Col 4: எடை (Weight) */}
                     <div
                       className={`flex items-center justify-end pr-2 font-mono-num font-semibold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '61.95%',
-                        width: '12.85%',
+                        left: isSupplierBill ? '61.66%' : '61.95%',
+                        width: isSupplierBill ? '12.78%' : '12.85%',
                         height: '100%',
                       }}
                     >
                       {item.weight > 0 ? formatNumber(item.weight) : ''}
                     </div>
 
-                    {/* Col 5: தொகை (Amount) - 74.79% to 98.27% */}
+                    {/* Col 5: தொகை (Amount) */}
                     <div
-                      className={`flex items-center justify-end pr-3 font-mono-num font-black text-gray-950 ${layout.fontSizeData}`}
+                      className={`flex items-center justify-end pr-3 font-mono-num font-black text-gray-950 ${layout.fontSizeAmount || layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: '74.79%',
-                        width: '23.48%',
+                        left: isSupplierBill ? '74.44%' : '74.79%',
+                        width: isSupplierBill ? '23.59%' : '23.48%',
                         height: '100%',
                       }}
                     >
@@ -365,118 +411,151 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               {/* 4. SUMMARY SECTION AMOUNTS (mapped into the blank amount cells) */}
               {page.isFinalPage ? (
                 <>
-                  {/* Row 1: இன்றைய மொத்தம் (Today's Total) Amount - Y=780..808px (76.17%..78.91%) */}
+                  {/* Row 1: இன்றைய மொத்தம் (Today's Total) Amount */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[15px]"
+                    className={`absolute flex items-center justify-end pr-3 font-mono-num font-black text-black ${
+                      isSupplierBill ? 'text-[12px] sm:text-[12.5px]' : 'text-[15px]'
+                    }`}
                     style={{
-                      left: '66.85%',
-                      top: '76.17%',
-                      width: '31.42%',
-                      height: '2.73%',
+                      left: isSupplierBill ? '66.85%' : '66.85%',
+                      top: isSupplierBill ? '76.17%' : '76.17%',
+                      width: isSupplierBill ? '31.18%' : '31.42%',
+                      height: isSupplierBill ? '2.64%' : '2.73%',
                     }}
                   >
                     {formatCurrency(todayTotal)}
                   </div>
 
-                  {/* Row 2: முன் பாக்கி Date - X=240..480px (33.15%..66.30%), Y=808..840px (78.91%..82.03%) */}
+                  {/* Row 2: முன் பாக்கி Date */}
                   {previousBalanceDateFormatted && (
-                    <div
-                      className="absolute flex items-center justify-start pl-2 font-mono-num font-bold text-gray-950 text-[12.5px]"
-                      style={{
-                        left: '33.15%',
-                        top: '78.91%',
-                        width: '33.15%',
-                        height: '3.12%',
-                      }}
-                    >
-                      (தேதி : {previousBalanceDateFormatted} )
-                    </div>
+                    isSupplierBill ? (
+                      /* In supplier template, முன் பாக்கி : (தேதி :   ) is printed; place date in the blank slot */
+                      <div
+                        className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[9.5px] sm:text-[10px]"
+                        style={{
+                          left: '46.5%',
+                          top: '78.81%',
+                          width: '16.0%',
+                          height: '3.03%',
+                        }}
+                      >
+                        {previousBalanceDateFormatted}
+                      </div>
+                    ) : (
+                      /* In customer template, place full (தேதி : ...) */
+                      <div
+                        className="absolute flex items-center justify-start pl-2 font-mono-num font-bold text-gray-950 text-[12.5px]"
+                        style={{
+                          left: '33.15%',
+                          top: '78.91%',
+                          width: '33.15%',
+                          height: '3.12%',
+                        }}
+                      >
+                        (தேதி : {previousBalanceDateFormatted} )
+                      </div>
+                    )
                   )}
 
                   {/* Row 2: முன் பாக்கி (Previous Balance) Amount */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[15px]"
+                    className={`absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black ${
+                      isSupplierBill ? 'text-[12px] sm:text-[12.5px]' : 'text-[15px]'
+                    }`}
                     style={{
-                      left: '66.85%',
-                      top: '78.91%',
-                      width: '31.42%',
-                      height: '3.12%',
+                      left: isSupplierBill ? '66.85%' : '66.85%',
+                      top: isSupplierBill ? '78.81%' : '78.91%',
+                      width: isSupplierBill ? '31.18%' : '31.42%',
+                      height: isSupplierBill ? '3.03%' : '3.12%',
                     }}
                   >
                     {formatCurrency(previousBalance)}
                   </div>
 
-                  {/* Row 3: மொத்தம் (Total) Amount - Y=840..874px (82.03%..85.35%) */}
+                  {/* Row 3: மொத்தம் (Total) Amount */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[16px]"
+                    className={`absolute flex items-center justify-end pr-3 font-mono-num font-black text-black ${
+                      isSupplierBill ? 'text-[12.5px] sm:text-[13px]' : 'text-[16px]'
+                    }`}
                     style={{
-                      left: '66.85%',
-                      top: '82.03%',
-                      width: '31.42%',
-                      height: '3.32%',
+                      left: isSupplierBill ? '66.85%' : '66.85%',
+                      top: isSupplierBill ? '81.84%' : '82.03%',
+                      width: isSupplierBill ? '31.18%' : '31.42%',
+                      height: isSupplierBill ? '3.32%' : '3.32%',
                     }}
                   >
                     {formatCurrency(total)}
                   </div>
 
                   {/* Row 4: செலுத்திய தொகை (Amount Paid) Label & Discount Note */}
-                  <div
-                    className="absolute flex items-center justify-between pl-2.5 pr-1.5"
-                    style={{
-                      left: '2.15%',
-                      top: '85.45%',
-                      width: '64.55%',
-                      height: '3.45%',
-                      backgroundColor: '#ffffff',
-                      zIndex: 2,
-                    }}
-                  >
-                    <span className="font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal select-none">
-                      செலுத்திய தொகை :
-                    </span>
-                    {discount > 0 && !isSupplierBill && (
-                      <span className="font-mono-num font-bold text-amber-900 text-[12px] whitespace-nowrap ml-1">
-                        (தள்ளுபடி: ₹{formatCurrency(discount)})
+                  {/* For Customer bills: cover "ரொக்கம் பெற்றது :" with "செலுத்திய தொகை :" and optional discount note */}
+                  {!isSupplierBill && (
+                    <div
+                      className="absolute flex items-center justify-between pl-2.5 pr-1.5"
+                      style={{
+                        left: '2.15%',
+                        top: '85.45%',
+                        width: '64.55%',
+                        height: '3.45%',
+                        backgroundColor: '#ffffff',
+                        zIndex: 2,
+                      }}
+                    >
+                      <span className="font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal select-none">
+                        செலுத்திய தொகை :
                       </span>
-                    )}
-                  </div>
+                      {discount > 0 && (
+                        <span className="font-mono-num font-bold text-amber-900 text-[12px] whitespace-nowrap ml-1">
+                          (தள்ளுபடி: ₹{formatCurrency(discount)})
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-                  {/* Row 4: செலுத்திய தொகை (Amount Paid) Value - Increased font size and font-black */}
+                  {/* Row 4: செலுத்திய தொகை (Amount Paid) Value */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]"
+                    className={
+                      isSupplierBill
+                        ? 'absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[13px] sm:text-[14px]'
+                        : 'absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]'
+                    }
                     style={{
-                      left: '66.85%',
-                      top: '85.35%',
-                      width: '31.42%',
-                      height: '3.61%',
+                      left: isSupplierBill ? '66.85%' : '66.85%',
+                      top: isSupplierBill ? '85.16%' : '85.35%',
+                      width: isSupplierBill ? '31.18%' : '31.42%',
+                      height: isSupplierBill ? '3.51%' : '3.61%',
                       zIndex: 2,
                     }}
                   >
                     {formatCurrency(varavu)}
                   </div>
 
-                  {/* Row 5: இறுதி மொத்தம் / மொத்த பாக்கி (Closing Balance) Amount - Y=911..950px (88.96%..92.77%) */}
+                  {/* Row 5: இறுதி மொத்தம் (Closing Balance) Amount */}
                   <div
-                    className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]"
+                    className={
+                      isSupplierBill
+                        ? 'absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[14px] sm:text-[15px]'
+                        : 'absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]'
+                    }
                     style={{
-                      left: '66.85%',
-                      top: '88.96%',
-                      width: '31.42%',
-                      height: '3.81%',
+                      left: isSupplierBill ? '66.85%' : '66.85%',
+                      top: isSupplierBill ? '88.67%' : '88.96%',
+                      width: isSupplierBill ? '31.18%' : '31.42%',
+                      height: isSupplierBill ? '3.91%' : '3.81%',
                     }}
                   >
                     {formatCurrency(closingBalance)}
                   </div>
                 </>
               ) : (
-                /* Multi-page continuation prompt on non-final pages (100% solid white cover to completely block pre-printed summary rows) */
+                /* Multi-page continuation prompt on non-final pages */
                 <div
                   className="absolute"
                   style={{
-                    left: '1.86%',
-                    top: '76.17%',
-                    width: '96.41%',
-                    height: '16.60%',
+                    left: isSupplierBill ? '1.54%' : '1.86%',
+                    top: isSupplierBill ? '76.17%' : '76.17%',
+                    width: isSupplierBill ? '96.49%' : '96.41%',
+                    height: isSupplierBill ? '16.41%' : '16.60%',
                     backgroundColor: '#ffffff',
                     zIndex: 10,
                   }}
@@ -486,15 +565,15 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     style={{ boxSizing: 'border-box' }}
                   >
                     <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-1.5 font-tamil font-black text-[#034D28] text-[14px]">
+                      <div className={`flex items-center gap-1.5 font-tamil font-black text-[#034D28] ${isSupplierBill ? 'text-[12px]' : 'text-[14px]'}`}>
                         <span>தொடர்ச்சி அடுத்த பக்கம் {page.pageNumber + 1}-ல் பார்க்கவும்</span>
-                        <span className="text-[15px] font-bold">&gt;&gt;</span>
+                        <span className={`${isSupplierBill ? 'text-[13px]' : 'text-[15px]'} font-bold`}>&gt;&gt;</span>
                       </div>
-                      <div className="font-mono-num font-black text-[#034D28] text-[13px] bg-white px-2 py-0.5 rounded border border-[#034D28]">
+                      <div className={`font-mono-num font-black text-[#034D28] bg-white px-2 py-0.5 rounded border border-[#034D28] ${isSupplierBill ? 'text-[11px]' : 'text-[13px]'}`}>
                         பக்கம் {page.pageNumber} / {page.totalPages}
                       </div>
                     </div>
-                    <div className="text-[11px] font-tamil text-gray-700 mt-1 text-center w-full">
+                    <div className={`font-tamil text-gray-700 mt-0.5 text-center w-full ${isSupplierBill ? 'text-[9.5px]' : 'text-[11px]'}`}>
                       (மொத்த கணக்கு விவரம் இறுதி பக்கம் {page.totalPages}-ல் காண்க)
                     </div>
                   </div>
@@ -504,7 +583,9 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               {/* Page indicator for multi-page bills (inside footer line next to வாழ்க வளமுடன்) */}
               {page.totalPages > 1 && (
                 <div
-                  className="absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] text-[11px]"
+                  className={`absolute flex items-center justify-end font-mono-num font-bold text-[#034D28] ${
+                    isSupplierBill ? 'text-[9.5px]' : 'text-[11px]'
+                  }`}
                   style={{
                     top: '94.2%',
                     right: '3.5%',

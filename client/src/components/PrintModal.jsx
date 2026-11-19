@@ -45,6 +45,15 @@ export const PrintModal = ({
   const scrollAreaRef = useRef(null);
   const dropdownRef = useRef(null);
 
+  const isSupplierBill = Boolean(
+    bill?.isPurchase ||
+    bill?.purchaseNumber ||
+    bill?.purchaseNumberFormatted ||
+    bill?.supplierName ||
+    bill?.supplier ||
+    bill?.billType === 'purchase'
+  );
+
   // Load master vegetables for resolving Tamil names in printed bills (with in-memory cache)
   useEffect(() => {
     let isMounted = true;
@@ -76,28 +85,36 @@ export const PrintModal = ({
     setPrintMountNode(node);
   }, []);
 
-  // Manage body class 'print-bill-active' and dynamic A5 @page style when modal is open
+  // Manage body class 'print-bill-active' / 'print-bill-supplier' and dynamic @page style when modal is open
   useEffect(() => {
     if (isOpen && bill) {
       document.body.classList.add('print-bill-active');
+      if (isSupplierBill) {
+        document.body.classList.add('print-bill-supplier');
+      } else {
+        document.body.classList.remove('print-bill-supplier');
+      }
       let styleTag = document.getElementById('a5-bill-print-style');
       if (!styleTag) {
         styleTag = document.createElement('style');
         styleTag.id = 'a5-bill-print-style';
-        styleTag.textContent = '@page { size: 148mm 210mm; margin: 0; } @media print { html, body { margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; overflow: visible !important; } }';
         document.head.appendChild(styleTag);
       }
+      const pageSize = isSupplierBill ? '105mm 148mm' : '148mm 210mm';
+      styleTag.textContent = `@page { size: ${pageSize}; margin: 0; } @media print { html, body { margin: 0 !important; padding: 0 !important; height: auto !important; min-height: 0 !important; overflow: visible !important; } }`;
     } else {
       document.body.classList.remove('print-bill-active');
+      document.body.classList.remove('print-bill-supplier');
       const styleTag = document.getElementById('a5-bill-print-style');
       if (styleTag) styleTag.remove();
     }
     return () => {
       document.body.classList.remove('print-bill-active');
+      document.body.classList.remove('print-bill-supplier');
       const styleTag = document.getElementById('a5-bill-print-style');
       if (styleTag) styleTag.remove();
     };
-  }, [isOpen, bill]);
+  }, [isOpen, bill, isSupplierBill]);
 
   // Handle autoPrint trigger if requested
   useEffect(() => {
@@ -116,7 +133,7 @@ export const PrintModal = ({
     const computeScale = () => {
       if (!scrollAreaRef.current) return;
       const clientWidth = scrollAreaRef.current.clientWidth;
-      const baseWidthPx = 560; // 148mm in 96 DPI CSS pixels (148 / 25.4 * 96)
+      const baseWidthPx = isSupplierBill ? 397 : 560; // A6 (105mm) vs A5 (148mm) in 96 DPI CSS pixels
       const availableWidth = clientWidth - 24;
       if (availableWidth > 0 && availableWidth < baseWidthPx) {
         setScale(availableWidth / baseWidthPx);
@@ -128,7 +145,7 @@ export const PrintModal = ({
     computeScale();
     window.addEventListener('resize', computeScale);
     return () => window.removeEventListener('resize', computeScale);
-  }, [isOpen]);
+  }, [isOpen, isSupplierBill]);
 
   // Close options dropdown on outside click
   useEffect(() => {
@@ -190,9 +207,13 @@ export const PrintModal = ({
   const renderAllBillPages = async () => {
     // Locate the printable bill container
     const printableOuter = document.querySelector('#printable-bill');
-    let pageNodes = printableOuter ? Array.from(printableOuter.querySelectorAll('.cpn-a5-bill')) : [];
+    let pageNodes = printableOuter
+      ? Array.from(printableOuter.querySelectorAll(isSupplierBill ? '.cpn-a6-bill' : '.cpn-a5-bill'))
+      : [];
     if (pageNodes.length === 0) {
-      const singleNode = document.querySelector('.cpn-a5-bill');
+      const singleNode =
+        document.querySelector(isSupplierBill ? '.cpn-a6-bill' : '.cpn-a5-bill') ||
+        document.querySelector('.cpn-a6-bill, .cpn-a5-bill');
       if (singleNode) pageNodes = [singleNode];
     }
 
@@ -200,10 +221,11 @@ export const PrintModal = ({
       throw new Error('Bill content element not found');
     }
 
-    // Exact unscaled A5 dimensions in screen pixels (96 DPI: 1 inch = 25.4mm)
-    // A5 width: 148mm = 559.37px; A5 height: 210mm = 793.70px
-    const targetWidthPx = 559.37;
-    const targetHeightPx = 793.70;
+    // Exact unscaled dimensions in screen pixels (96 DPI: 1 inch = 25.4mm)
+    // A5: 148mm = 559.37px; 210mm = 793.70px
+    // A6: 105mm = 396.85px; 148mm = 559.37px
+    const targetWidthPx = isSupplierBill ? 396.85 : 559.37;
+    const targetHeightPx = isSupplierBill ? 559.37 : 793.70;
 
     // Wait for Tamil fonts (Mukta Malar / Noto Sans Tamil / system) to be ready
     if (document.fonts && document.fonts.ready) {
@@ -468,11 +490,13 @@ export const PrintModal = ({
                 </h3>
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-[#034D28] border border-emerald-300 rounded-full text-[11px] font-black">
                   <CheckCircle2 className="w-3 h-3 text-[#034D28]" />
-                  {sheetCount === 1 ? 'A5 Sheet (1 Sheet Only)' : `A5 Sheets (${sheetCount} Sheets)`}
+                  {sheetCount === 1
+                    ? `${isSupplierBill ? 'A6' : 'A5'} Sheet (1 Sheet Only)`
+                    : `${isSupplierBill ? 'A6' : 'A5'} Sheets (${sheetCount} Sheets)`}
                 </span>
               </div>
               <p className="text-xs text-gray-500 font-medium">
-                Target: Canon G3030 series • Alignment matched to A5 portrait (148 × 210 mm)
+                Target: Canon G3030 series • Alignment matched to {isSupplierBill ? 'A6' : 'A5'} portrait ({isSupplierBill ? '105 × 148 mm' : '148 × 210 mm'})
               </p>
             </div>
           </div>
@@ -543,7 +567,9 @@ export const PrintModal = ({
                     <Printer className="w-4 h-4 text-[#034D28]" />
                     <div>
                       <div className="font-extrabold text-gray-900">Direct to Canon G3030</div>
-                      <div className="text-[10px] text-gray-400 font-normal">1-click direct USB printing (A5)</div>
+                      <div className="text-[10px] text-gray-400 font-normal">
+                        1-click direct USB printing ({isSupplierBill ? 'A6' : 'A5'})
+                      </div>
                     </div>
                   </button>
 
@@ -568,7 +594,7 @@ export const PrintModal = ({
                           ? 'Generating PNGs...'
                           : sheetCount > 1
                           ? `Save all ${sheetCount} pages as high-resolution PNG`
-                          : 'High-resolution PNG (A5)'}
+                          : `High-resolution PNG (${isSupplierBill ? 'A6' : 'A5'})`}
                       </div>
                     </div>
                   </button>

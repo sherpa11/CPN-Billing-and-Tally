@@ -88,7 +88,7 @@ body.print-bill-active #print-root {
   }
 
   /* ========================================================================= */
-  /* 1. DEDICATED A5 BILL PRINTING (Strictly scoped to body.print-bill-active)  */
+  /* 1. DEDICATED BILL PRINTING (Strictly scoped to body.print-bill-active)    */
   /* ========================================================================= */
   body.print-bill-active,
   html:has(body.print-bill-active) {
@@ -103,6 +103,12 @@ body.print-bill-active #print-root {
     overflow: visible !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* When printing a supplier A6 bill, adjust root width to 105mm */
+  body.print-bill-active.print-bill-supplier,
+  html:has(body.print-bill-active.print-bill-supplier) {
+    width: 105mm !important;
   }
 
   /* When printing a bill, COMPLETELY HIDE the main application (#root) */
@@ -132,6 +138,11 @@ body.print-bill-active #print-root {
     break-after: avoid !important;
   }
 
+  body.print-bill-active.print-bill-supplier #print-root {
+    width: 105mm !important;
+    max-width: 105mm !important;
+  }
+
   /* Clean portal styling in print so the bill is the only rendered element */
   body.print-bill-active .print-modal-portal,
   body.print-bill-active .print-modal-container,
@@ -154,6 +165,14 @@ body.print-bill-active #print-root {
     border-radius: 0 !important;
     page-break-after: avoid !important;
     break-after: avoid !important;
+  }
+
+  body.print-bill-active.print-bill-supplier .print-modal-portal,
+  body.print-bill-active.print-bill-supplier .print-modal-container,
+  body.print-bill-active.print-bill-supplier .print-modal-scroll-area,
+  body.print-bill-active.print-bill-supplier .print-bill-scaler {
+    max-width: 105mm !important;
+    width: 105mm !important;
   }
 
   /* ========================================================================= */
@@ -380,7 +399,7 @@ body.print-bill-active #print-root {
     overflow: hidden !important;
   }
 
-  /* Dedicated Print Container for A5 Bill */
+  /* Dedicated Print Container for Bills */
   #printable-bill {
     margin: 0 !important;
     padding: 0 !important;
@@ -394,15 +413,38 @@ body.print-bill-active #print-root {
     break-after: avoid !important;
   }
 
-  /* Exact A5 Dimensions for CPN Bill (148mm width × 209mm height precisely filling A5 paper without boundary overflow) */
-  .cpn-a5-bill,
-  .cpn-a6-bill {
+  body.print-bill-active.print-bill-supplier #printable-bill {
+    width: 105mm !important;
+    max-width: 105mm !important;
+  }
+
+  /* Exact A5 Dimensions for CPN Customer Bill (148mm width × 209mm height precisely filling A5 paper without boundary overflow) */
+  .cpn-a5-bill {
     position: relative !important;
     display: block !important;
     width: 148mm !important;
     max-width: 148mm !important;
     height: 209mm !important;
     max-height: 209mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Exact A6 Dimensions for CPN Supplier Bill (105mm width × 147.5mm height precisely filling A6 paper without boundary overflow) */
+  .cpn-a6-bill {
+    position: relative !important;
+    display: block !important;
+    width: 105mm !important;
+    max-width: 105mm !important;
+    height: 147.5mm !important;
+    max-height: 147.5mm !important;
     margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
