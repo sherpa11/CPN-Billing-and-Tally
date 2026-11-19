@@ -56,7 +56,7 @@ export const NewBill = () => {
 
   // Bill Party Mode: 'customer' | 'supplier'
   const typeParam = searchParams.get('type');
-  const [partyType, setPartyType] = useState(() => (typeParam === 'supplier' ? 'supplier' : 'customer'));
+  const [partyType, setPartyType] = useState(() => (typeParam === 'supplier' || typeParam === 'purchase' ? 'supplier' : 'customer'));
 
   // Bill Form State
   const [selectedCustomer, setSelectedCustomer] = useState(null);
@@ -145,7 +145,7 @@ export const NewBill = () => {
       try {
         setEditLoading(true);
         setError('');
-        const isSupplier = typeParam === 'supplier' || partyType === 'supplier';
+        const isSupplier = typeParam === 'supplier' || typeParam === 'purchase' || partyType === 'supplier';
         const endpoint = isSupplier ? `/purchases/${editBillId}` : `/bills/${editBillId}`;
         const res = await api.get(endpoint);
         if (!res.success || !res.data) {

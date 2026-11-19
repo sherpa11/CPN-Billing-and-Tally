@@ -1,4 +1,5 @@
 const Bill = require('../models/Bill');
+const Purchase = require('../models/Purchase');
 const Payment = require('../models/Payment');
 const Customer = require('../models/Customer');
 const Vegetable = require('../models/Vegetable');
@@ -303,7 +304,7 @@ const getDashboardStats = async (req, res) => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const [todayBills, todayPayments, totalCustomers, totalVegetables, outstandingAgg] = await Promise.all([
+    const [todayBills, todayPayments, totalCustomers, totalVegetables, outstandingAgg, todayPurchases] = await Promise.all([
       Bill.find({ billDate: { $gte: todayStart, $lte: todayEnd }, status: 'active' })
         .select('todayTotal totalDebit totalCredit discount varavu cashReceived')
         .lean(),
@@ -316,6 +317,9 @@ const getDashboardStats = async (req, res) => {
         { $match: { isDeleted: false, currentBalance: { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$currentBalance' } } },
       ]),
+      Purchase.find({ purchaseDate: { $gte: todayStart, $lte: todayEnd }, status: 'active' })
+        .select('todayTotal totalDebit grandTotal totalBag totalWeight discount varavu cashPaid closingBalance')
+        .lean(),
     ]);
 
     let todaySales = 0;
@@ -341,6 +345,20 @@ const getDashboardStats = async (req, res) => {
     const totalPaymentsReceived = round2(todayVaravu + directPaymentsTotal);
     const totalOutstanding = outstandingAgg.length > 0 ? round2(outstandingAgg[0].total) : 0;
 
+    // Supplier Purchase Metrics (Today) - Strictly calculated only from supplier purchase records
+    let todayPurchasesTotal = 0;
+    let todayPurchasesBags = 0;
+    let todayPurchasesWeight = 0;
+    let todayPurchasesPaid = 0;
+
+    (todayPurchases || []).forEach((p) => {
+      const purTotal = p.todayTotal !== undefined && p.todayTotal !== null ? p.todayTotal : (p.totalDebit || 0);
+      todayPurchasesTotal = round2(todayPurchasesTotal + purTotal);
+      todayPurchasesBags = round2(todayPurchasesBags + (p.totalBag || 0));
+      todayPurchasesWeight = round2(todayPurchasesWeight + (p.totalWeight || 0));
+      todayPurchasesPaid = round2(todayPurchasesPaid + (p.varavu !== undefined ? p.varavu : (p.cashPaid || 0)));
+    });
+
     res.json({
       success: true,
       todayBillsCount: todayBills.length,
@@ -353,6 +371,12 @@ const getDashboardStats = async (req, res) => {
       totalOutstanding,
       activeCustomers: totalCustomers,
       activeVegetables: totalVegetables,
+      // Dedicated purchase statistics
+      todayPurchasesCount: todayPurchases.length,
+      todayPurchasesTotal,
+      todayPurchasesBags,
+      todayPurchasesWeight,
+      todayPurchasesPaid,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

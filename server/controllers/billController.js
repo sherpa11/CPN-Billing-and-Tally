@@ -1,4 +1,5 @@
 const Bill = require('../models/Bill');
+const Purchase = require('../models/Purchase');
 const Customer = require('../models/Customer');
 const Vegetable = require('../models/Vegetable');
 const Payment = require('../models/Payment');
@@ -29,7 +30,7 @@ const getNextBillNumber = async (req, res) => {
   }
 };
 
-// @desc Get all bills with filters & pagination
+// @desc Get all bills with filters & pagination (supports customer, purchase, or all unified)
 // @route GET /api/bills
 const getBills = async (req, res) => {
   try {
@@ -37,12 +38,213 @@ const getBills = async (req, res) => {
       startDate,
       endDate,
       customer,
+      supplier,
       search,
       status = 'active',
       page = 1,
       limit = 25,
+      type = 'customer', // 'customer' | 'purchase' | 'all'
     } = req.query;
 
+    const pageNum = Math.max(1, parseInt(page, 10));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
+    const skip = (pageNum - 1) * limitNum;
+
+    // 1. PURCHASE BILLS ONLY
+    if (type === 'purchase') {
+      let purQuery = {};
+      if (status !== 'all') {
+        purQuery.status = status;
+      }
+      if (supplier) {
+        purQuery.supplier = supplier;
+      }
+      if (startDate || endDate) {
+        purQuery.purchaseDate = {};
+        if (startDate) purQuery.purchaseDate.$gte = new Date(startDate);
+        if (endDate) {
+          const end = new Date(endDate);
+          end.setHours(23, 59, 59, 999);
+          purQuery.purchaseDate.$lte = end;
+        }
+      }
+      if (search && search.trim() !== '') {
+        const term = search.trim();
+        const numTerm = parseInt(term, 10);
+        const orClauses = [
+          { supplierName: new RegExp(term, 'i') },
+          { purchaseNumberFormatted: new RegExp(term, 'i') },
+        ];
+        if (!isNaN(numTerm)) {
+          orClauses.push({ purchaseNumber: numTerm });
+        }
+        purQuery.$or = orClauses;
+      }
+
+      const [total, purchases] = await Promise.all([
+        Purchase.countDocuments(purQuery),
+        Purchase.find(purQuery)
+          .select(
+            'purchaseNumber purchaseNumberFormatted supplier supplierName supplierPhone purchaseDate totalBag totalWeight todayTotal grandTotal totalDebit discount varavu cashPaid closingBalance status notes createdAt'
+          )
+          .populate('supplier', 'name tamilName phone currentBalance')
+          .sort({ purchaseDate: -1, purchaseNumber: -1 })
+          .skip(skip)
+          .limit(limitNum)
+          .lean(),
+      ]);
+
+      const formatted = purchases.map((p) => ({
+        ...p,
+        billType: 'purchase',
+        isPurchase: true,
+        billNumber: p.purchaseNumber,
+        billNumberFormatted: p.purchaseNumberFormatted,
+        billDate: p.purchaseDate,
+        customerName: p.supplierName,
+        customerPhone: p.supplierPhone,
+        todayTotal: p.todayTotal !== undefined && p.todayTotal !== null ? p.todayTotal : (p.totalDebit || 0),
+        purchaseTotal: p.todayTotal !== undefined && p.todayTotal !== null ? p.todayTotal : (p.totalDebit || 0),
+        cashReceived: p.varavu !== undefined ? p.varavu : (p.cashPaid || 0),
+        discount: 0,
+      }));
+
+      return res.json({
+        success: true,
+        count: formatted.length,
+        total,
+        page: pageNum,
+        pages: Math.ceil(total / limitNum),
+        data: formatted,
+      });
+    }
+
+    // 2. UNIFIED BILLS (Customer Sales + Supplier Purchases)
+    if (type === 'all') {
+      let billQuery = {};
+      let purQuery = {};
+
+      if (status !== 'all') {
+        billQuery.status = status;
+        purQuery.status = status;
+      }
+
+      if (customer) billQuery.customer = customer;
+      if (supplier) purQuery.supplier = supplier;
+
+      if (startDate || endDate) {
+        billQuery.billDate = {};
+        purQuery.purchaseDate = {};
+        if (startDate) {
+          const s = new Date(startDate);
+          billQuery.billDate.$gte = s;
+          purQuery.purchaseDate.$gte = s;
+        }
+        if (endDate) {
+          const e = new Date(endDate);
+          e.setHours(23, 59, 59, 999);
+          billQuery.billDate.$lte = e;
+          purQuery.purchaseDate.$lte = e;
+        }
+      }
+
+      if (search && search.trim() !== '') {
+        const term = search.trim();
+        const numTerm = parseInt(term, 10);
+
+        const billOr = [
+          { customerName: new RegExp(term, 'i') },
+          { billNumberFormatted: new RegExp(term, 'i') },
+        ];
+        if (!isNaN(numTerm)) billOr.push({ billNumber: numTerm });
+        billQuery.$or = billOr;
+
+        const purOr = [
+          { supplierName: new RegExp(term, 'i') },
+          { purchaseNumberFormatted: new RegExp(term, 'i') },
+        ];
+        if (!isNaN(numTerm)) purOr.push({ purchaseNumber: numTerm });
+        purQuery.$or = purOr;
+      }
+
+      const shouldQueryBills = !supplier;
+      const shouldQueryPurchases = !customer;
+
+      const [totalBills, totalPurchases] = await Promise.all([
+        shouldQueryBills ? Bill.countDocuments(billQuery) : 0,
+        shouldQueryPurchases ? Purchase.countDocuments(purQuery) : 0,
+      ]);
+
+      const grandTotalCount = totalBills + totalPurchases;
+      const fetchLimit = skip + limitNum;
+
+      const [rawBills, rawPurchases] = await Promise.all([
+        shouldQueryBills
+          ? Bill.find(billQuery)
+              .select(
+                'billNumber billNumberFormatted customer customerName customerPhone billDate totalBag totalWeight todayTotal grandTotal totalDebit discount varavu cashReceived closingBalance status notes createdAt'
+              )
+              .populate('customer', 'name tamilName phone currentBalance')
+              .sort({ billDate: -1, billNumber: -1 })
+              .limit(fetchLimit)
+              .lean()
+          : [],
+        shouldQueryPurchases
+          ? Purchase.find(purQuery)
+              .select(
+                'purchaseNumber purchaseNumberFormatted supplier supplierName supplierPhone purchaseDate totalBag totalWeight todayTotal grandTotal totalDebit discount varavu cashPaid closingBalance status notes createdAt'
+              )
+              .populate('supplier', 'name tamilName phone currentBalance')
+              .sort({ purchaseDate: -1, purchaseNumber: -1 })
+              .limit(fetchLimit)
+              .lean()
+          : [],
+      ]);
+
+      const combined = [
+        ...rawBills.map((b) => ({
+          ...b,
+          billType: 'customer',
+          isPurchase: false,
+          effectiveDate: b.billDate,
+        })),
+        ...rawPurchases.map((p) => ({
+          ...p,
+          billType: 'purchase',
+          isPurchase: true,
+          billNumber: p.purchaseNumber,
+          billNumberFormatted: p.purchaseNumberFormatted,
+          billDate: p.purchaseDate,
+          customerName: p.supplierName,
+          customerPhone: p.supplierPhone,
+          todayTotal: p.todayTotal !== undefined && p.todayTotal !== null ? p.todayTotal : (p.totalDebit || 0),
+          purchaseTotal: p.todayTotal !== undefined && p.todayTotal !== null ? p.todayTotal : (p.totalDebit || 0),
+          cashReceived: p.varavu !== undefined ? p.varavu : (p.cashPaid || 0),
+          discount: 0,
+          effectiveDate: p.purchaseDate,
+        })),
+      ];
+
+      combined.sort((a, b) => {
+        const timeA = new Date(a.effectiveDate || a.createdAt || 0).getTime();
+        const timeB = new Date(b.effectiveDate || b.createdAt || 0).getTime();
+        if (timeB !== timeA) return timeB - timeA;
+        return (b.billNumber || 0) - (a.billNumber || 0);
+      });
+
+      const paged = combined.slice(skip, skip + limitNum);
+
+      return res.json({
+        success: true,
+        count: paged.length,
+        total: grandTotalCount,
+        page: pageNum,
+        pages: Math.ceil(grandTotalCount / limitNum),
+        data: paged,
+      });
+    }
+
+    // 3. DEFAULT: CUSTOMER BILLS ONLY (100% Backward Compatible)
     let query = {};
     if (status !== 'all') {
       query.status = status;
@@ -77,10 +279,6 @@ const getBills = async (req, res) => {
       query.$or = orClauses;
     }
 
-    const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
-    const skip = (pageNum - 1) * limitNum;
-
     // High performance query: use .lean() and avoid heavy nested subdocument populates in list view
     const [total, bills] = await Promise.all([
       Bill.countDocuments(query),
@@ -95,13 +293,19 @@ const getBills = async (req, res) => {
         .lean(),
     ]);
 
+    const formattedBills = bills.map((b) => ({
+      ...b,
+      billType: 'customer',
+      isPurchase: false,
+    }));
+
     res.json({
       success: true,
-      count: bills.length,
+      count: formattedBills.length,
       total,
       page: pageNum,
       pages: Math.ceil(total / limitNum),
-      data: bills,
+      data: formattedBills,
     });
   } catch (error) {
     console.error('[Bill] getBills error:', error);

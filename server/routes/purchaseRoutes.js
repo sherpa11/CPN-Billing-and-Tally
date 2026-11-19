@@ -19,5 +19,6 @@ router.get('/:id', getPurchaseById);
 router.post('/', createPurchase);
 router.put('/:id', updatePurchase);
 router.put('/:id/cancel', cancelPurchase);
+router.post('/:id/cancel', cancelPurchase);
 
 module.exports = router;
