@@ -119,6 +119,19 @@ async function runSuite() {
     assert.ok(templateContent.includes('பக்கம் {page.pageNumber} / {page.totalPages}'), 'Must display page numbers');
   });
 
+  runTest('2.7 Customer bills: Row 4 label cell strictly inside summary table boundaries without left border overflow', () => {
+    assert.ok(
+      templateContent.includes("left: '16.0%'") &&
+      templateContent.includes("width: '50.4%'") &&
+      templateContent.includes("backgroundColor: '#ffffff'"),
+      'Row 4 label cell must be positioned within the inner cell (16.0% to 66.4%) with white background'
+    );
+    assert.ok(
+      !templateContent.includes("left: '2.15%'"),
+      'Must NOT contain misplaced old coordinate left: 2.15% outside the summary table'
+    );
+  });
+
   // ----------------------------------------------------
   // SECTION 3: Live Database & Accounting Validations
   // ----------------------------------------------------

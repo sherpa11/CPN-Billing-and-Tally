@@ -452,12 +452,13 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                   {/* Row 4: செலுத்திய தொகை (Amount Paid) Label & Discount Note */}
                   {!isSupplierBill && (
                     <div
-                      className="absolute flex items-center justify-between pl-2.5 pr-1.5"
+                      className="absolute flex items-center justify-between pl-3 pr-2"
                       style={{
-                        left: '2.15%',
-                        top: '85.16%',
-                        width: '64.55%',
-                        height: '3.51%',
+                        left: '16.0%',
+                        top: '85.25%',
+                        width: '50.4%',
+                        height: '3.32%',
+                        backgroundColor: '#ffffff',
                         zIndex: 2,
                       }}
                     >
