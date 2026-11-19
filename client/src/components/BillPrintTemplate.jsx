@@ -33,30 +33,9 @@ const formatNumber = (num, decimals = 2) => {
 
 // Helper to get adaptive row layout parameters inside the vegetable table area
 const getAdaptiveOverlayLayout = (itemCount, isSupplier = false) => {
-  if (isSupplier) {
-    if (itemCount <= 5) {
-      return {
-        rowHeightPercent: 4.6,
-        fontSizeParticulars: 'text-[15px] leading-tight font-bold',
-        fontSizeData: 'text-[15px] font-bold',
-        fontSizeAmount: 'text-[15px] font-black',
-        lineHeight: 'leading-normal',
-      };
-    } else {
-      // 6 to 10 items
-      return {
-        rowHeightPercent: 4.6,
-        fontSizeParticulars: 'text-[13.5px] leading-tight font-bold',
-        fontSizeData: 'text-[13.5px] font-bold',
-        fontSizeAmount: 'text-[13.5px] font-black',
-        lineHeight: 'leading-normal',
-      };
-    }
-  }
-
   if (itemCount <= 5) {
     return {
-      rowHeightPercent: 4.5,
+      rowHeightPercent: 4.6,
       fontSizeParticulars: 'text-[15px] leading-tight font-bold',
       fontSizeData: 'text-[15px] font-bold',
       fontSizeAmount: 'text-[15px] font-black',
@@ -65,7 +44,7 @@ const getAdaptiveOverlayLayout = (itemCount, isSupplier = false) => {
   } else {
     // 6 to 10 items
     return {
-      rowHeightPercent: 4.2,
+      rowHeightPercent: 4.6,
       fontSizeParticulars: 'text-[13.5px] leading-tight font-bold',
       fontSizeData: 'text-[13.5px] font-bold',
       fontSizeAmount: 'text-[13.5px] font-black',
@@ -200,14 +179,14 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
     });
   }
 
-  // Resolved party name and contact
+  // Resolved party name and contact (strictly isolated: customer info for customer bills, supplier info for supplier bills)
   const partyName = isSupplierBill
-    ? bill.supplierName || bill.supplier?.name || bill.customerName || bill.customer?.name || ''
-    : bill.customerName || bill.customer?.name || bill.supplierName || bill.supplier?.name || '';
+    ? bill.supplierName || bill.supplier?.name || ''
+    : bill.customerName || bill.customer?.name || '';
 
   const partyPhone = isSupplierBill
-    ? bill.supplierPhone || bill.supplier?.phone || bill.supplier?.mobile || bill.customerPhone || bill.phone || ''
-    : bill.customerPhone || bill.customer?.phone || bill.customer?.mobile || bill.supplierPhone || bill.phone || '';
+    ? bill.supplierPhone || bill.supplier?.phone || bill.supplier?.mobile || ''
+    : bill.customerPhone || bill.customer?.phone || bill.customer?.mobile || '';
 
   const billDateFormatted = formatDate(bill.billDate || bill.purchaseDate || bill.date || bill.createdAt);
 
@@ -215,7 +194,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
     <div id="printable-bill" style={{ margin: 0, padding: 0 }}>
       {pages.map((page, pIdx) => {
         const layout = getAdaptiveOverlayLayout(page.items.length, isSupplierBill);
-        const tableTop = isSupplierBill ? 29.8 : 30.08;
+        const tableTop = 29.8;
 
         return (
           <div
@@ -240,6 +219,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
             {/* BASE LAYER: ACTUAL ORIGINAL BLANK CPN BILL IMAGE TEMPLATE      */}
             {/* Supplier: cpn_supplier_bill_template.jpg (A5: 148 × 210 mm)    */}
             {/* Customer: cpn_blank_bill_template.jpg (A5: 148 × 210 mm)       */}
+            {/* Both use the approved exact A5 uploaded bill leaf template     */}
             {/* ============================================================== */}
             <img
               src={isSupplierBill ? '/cpn_supplier_bill_template.jpg' : '/cpn_blank_bill_template.jpg'}
@@ -270,10 +250,10 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               <div
                 className="absolute flex items-center font-black text-black font-tamil text-[18px] leading-none truncate pl-1 pr-2"
                 style={{
-                  left: isSupplierBill ? '10.0%' : '10.5%',
-                  top: isSupplierBill ? '22.0%' : '22.27%',
-                  width: isSupplierBill ? '54.5%' : '55.0%',
-                  height: isSupplierBill ? '3.4%' : '4.00%',
+                  left: '10.0%',
+                  top: '22.0%',
+                  width: '54.5%',
+                  height: '3.4%',
                   boxSizing: 'border-box',
                 }}
                 title={partyName}
@@ -295,10 +275,10 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
               <div
                 className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[15px] leading-none"
                 style={{
-                  left: isSupplierBill ? '74.5%' : '74.6%',
-                  top: isSupplierBill ? '22.0%' : '22.27%',
-                  width: isSupplierBill ? '23.5%' : '23.4%',
-                  height: isSupplierBill ? '3.4%' : '4.00%',
+                  left: '74.5%',
+                  top: '22.0%',
+                  width: '23.5%',
+                  height: '3.4%',
                   boxSizing: 'border-box',
                 }}
               >
@@ -333,8 +313,8 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       className={`flex items-center justify-center font-mono-num font-bold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: isSupplierBill ? '1.54%' : '1.86%',
-                        width: isSupplierBill ? '13.91%' : '13.81%',
+                        left: '1.54%',
+                        width: '13.91%',
                         height: '100%',
                       }}
                     >
@@ -346,8 +326,8 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       className={`flex items-center text-left pl-2.5 pr-1 font-tamil font-bold text-gray-950 truncate ${layout.fontSizeParticulars}`}
                       style={{
                         position: 'absolute',
-                        left: isSupplierBill ? '15.45%' : '15.68%',
-                        width: isSupplierBill ? '35.53%' : '35.64%',
+                        left: '15.45%',
+                        width: '35.53%',
                         height: '100%',
                       }}
                     >
@@ -359,8 +339,8 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       className={`flex items-center justify-center font-mono-num font-bold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: isSupplierBill ? '50.98%' : '51.31%',
-                        width: isSupplierBill ? '10.68%' : '10.64%',
+                        left: '50.98%',
+                        width: '10.68%',
                         height: '100%',
                       }}
                     >
@@ -372,8 +352,8 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       className={`flex items-center justify-end pr-2 font-mono-num font-semibold text-gray-950 ${layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: isSupplierBill ? '61.66%' : '61.95%',
-                        width: isSupplierBill ? '12.78%' : '12.85%',
+                        left: '61.66%',
+                        width: '12.78%',
                         height: '100%',
                       }}
                     >
@@ -385,8 +365,8 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                       className={`flex items-center justify-end pr-3 font-mono-num font-black text-gray-950 ${layout.fontSizeAmount || layout.fontSizeData}`}
                       style={{
                         position: 'absolute',
-                        left: isSupplierBill ? '74.44%' : '74.79%',
-                        width: isSupplierBill ? '23.59%' : '23.48%',
+                        left: '74.44%',
+                        width: '23.59%',
                         height: '100%',
                       }}
                     >
@@ -405,8 +385,8 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     style={{
                       left: '66.85%',
                       top: '76.17%',
-                      width: isSupplierBill ? '31.18%' : '31.42%',
-                      height: isSupplierBill ? '2.64%' : '2.73%',
+                      width: '31.18%',
+                      height: '2.64%',
                     }}
                   >
                     {formatCurrency(todayTotal)}
@@ -428,17 +408,17 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                         {previousBalanceDateFormatted}
                       </div>
                     ) : (
-                      /* In customer template, place full (தேதி : ...) */
+                      /* In customer template, place date cleanly in the pre-printed slot */
                       <div
-                        className="absolute flex items-center justify-start pl-2 font-mono-num font-bold text-gray-950 text-[12.5px]"
+                        className="absolute flex items-center justify-center font-mono-num font-bold text-gray-950 text-[12.5px]"
                         style={{
-                          left: '33.15%',
-                          top: '78.91%',
-                          width: '33.15%',
-                          height: '3.12%',
+                          left: '46.5%',
+                          top: '78.81%',
+                          width: '16.0%',
+                          height: '3.03%',
                         }}
                       >
-                        (தேதி : {previousBalanceDateFormatted} )
+                        {previousBalanceDateFormatted}
                       </div>
                     )
                   )}
@@ -448,9 +428,9 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-bold text-black text-[15px]"
                     style={{
                       left: '66.85%',
-                      top: isSupplierBill ? '78.81%' : '78.91%',
-                      width: isSupplierBill ? '31.18%' : '31.42%',
-                      height: isSupplierBill ? '3.03%' : '3.12%',
+                      top: '78.81%',
+                      width: '31.18%',
+                      height: '3.03%',
                     }}
                   >
                     {formatCurrency(previousBalance)}
@@ -461,25 +441,23 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[16px]"
                     style={{
                       left: '66.85%',
-                      top: isSupplierBill ? '81.84%' : '82.03%',
-                      width: isSupplierBill ? '31.18%' : '31.42%',
-                      height: isSupplierBill ? '3.32%' : '3.32%',
+                      top: '81.84%',
+                      width: '31.18%',
+                      height: '3.32%',
                     }}
                   >
                     {formatCurrency(total)}
                   </div>
 
                   {/* Row 4: செலுத்திய தொகை (Amount Paid) Label & Discount Note */}
-                  {/* For Customer bills: cover "ரொக்கம் பெற்றது :" with "செலுத்திய தொகை :" and optional discount note */}
                   {!isSupplierBill && (
                     <div
                       className="absolute flex items-center justify-between pl-2.5 pr-1.5"
                       style={{
                         left: '2.15%',
-                        top: '85.45%',
+                        top: '85.16%',
                         width: '64.55%',
-                        height: '3.45%',
-                        backgroundColor: '#ffffff',
+                        height: '3.51%',
                         zIndex: 2,
                       }}
                     >
@@ -499,9 +477,9 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]"
                     style={{
                       left: '66.85%',
-                      top: isSupplierBill ? '85.16%' : '85.35%',
-                      width: isSupplierBill ? '31.18%' : '31.42%',
-                      height: isSupplierBill ? '3.51%' : '3.61%',
+                      top: '85.16%',
+                      width: '31.18%',
+                      height: '3.51%',
                       zIndex: 2,
                     }}
                   >
@@ -513,9 +491,9 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     className="absolute flex items-center justify-end pr-3 font-mono-num font-black text-black text-[18px]"
                     style={{
                       left: '66.85%',
-                      top: isSupplierBill ? '88.67%' : '88.96%',
-                      width: isSupplierBill ? '31.18%' : '31.42%',
-                      height: isSupplierBill ? '3.91%' : '3.81%',
+                      top: '88.67%',
+                      width: '31.18%',
+                      height: '3.91%',
                     }}
                   >
                     {formatCurrency(closingBalance)}
@@ -526,10 +504,10 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                 <div
                   className="absolute"
                   style={{
-                    left: isSupplierBill ? '1.54%' : '1.86%',
+                    left: '1.54%',
                     top: '76.17%',
-                    width: isSupplierBill ? '96.49%' : '96.41%',
-                    height: isSupplierBill ? '16.41%' : '16.60%',
+                    width: '96.49%',
+                    height: '16.41%',
                     backgroundColor: '#ffffff',
                     zIndex: 10,
                   }}
