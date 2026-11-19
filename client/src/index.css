@@ -79,11 +79,19 @@ body.print-bill-active #print-root {
 }
 
 @media print {
+  /* Global reset in print to prevent default 100vh / min-height spills */
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+
   /* ========================================================================= */
   /* 1. DEDICATED A5 BILL PRINTING (Strictly scoped to body.print-bill-active)  */
   /* ========================================================================= */
   body.print-bill-active,
-  body.print-bill-active html {
+  html:has(body.print-bill-active) {
     width: 148mm !important;
     height: auto !important;
     min-height: 0 !important;
@@ -100,6 +108,11 @@ body.print-bill-active #print-root {
   /* When printing a bill, COMPLETELY HIDE the main application (#root) */
   body.print-bill-active #root {
     display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    max-width: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
   }
 
   /* When printing a bill, show ONLY the print portal root */
@@ -107,6 +120,7 @@ body.print-bill-active #print-root {
     display: block !important;
     position: static !important;
     width: 148mm !important;
+    max-width: 148mm !important;
     height: auto !important;
     min-height: 0 !important;
     max-height: none !important;
@@ -114,6 +128,8 @@ body.print-bill-active #print-root {
     padding: 0 !important;
     background: #ffffff !important;
     overflow: visible !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   /* Clean portal styling in print so the bill is the only rendered element */
@@ -128,13 +144,16 @@ body.print-bill-active #print-root {
     margin: 0 !important;
     border: none !important;
     box-shadow: none !important;
-    max-width: none !important;
-    max-height: none !important;
+    max-width: 148mm !important;
     width: 148mm !important;
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
     transform: none !important;
     border-radius: 0 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   /* ========================================================================= */
@@ -368,21 +387,23 @@ body.print-bill-active #print-root {
     width: 148mm !important;
     max-width: 148mm !important;
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
-    page-break-after: auto !important;
-    break-after: auto !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
-  /* Exact A5 Dimensions for CPN Bill (148mm width × 210mm height precisely filling A5 paper) */
+  /* Exact A5 Dimensions for CPN Bill (148mm width × 209mm height precisely filling A5 paper without boundary overflow) */
   .cpn-a5-bill,
   .cpn-a6-bill {
     position: relative !important;
     display: block !important;
     width: 148mm !important;
     max-width: 148mm !important;
-    height: 210mm !important;
-    max-height: 210mm !important;
-    margin: 0 !important;
+    height: 209mm !important;
+    max-height: 209mm !important;
+    margin: 0 auto !important;
     padding: 0 !important;
     background: #ffffff !important;
     box-sizing: border-box !important;
@@ -400,9 +421,11 @@ body.print-bill-active #print-root {
   }
 
   .cpn-a5-bill:last-child,
-  .cpn-a6-bill:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
+  .cpn-a5-bill:last-of-type,
+  .cpn-a6-bill:last-child,
+  .cpn-a6-bill:last-of-type {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   .page-break-after {

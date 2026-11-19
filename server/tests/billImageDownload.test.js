@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 console.log('\n======================================================');
-console.log('  CPN VEGETABLES - BILL IMAGE DOWNLOAD & PRINT MENU   ');
+console.log('  CPN VEGETABLES - MULTI-PAGE BILL DOWNLOAD & SHARING  ');
 console.log('======================================================\n');
 
 const printModalPath = path.resolve(__dirname, '../../client/src/components/PrintModal.jsx');
@@ -57,42 +57,65 @@ runTest('2. Browser Print Preview and Download PDF options are completely remove
   );
 });
 
-// 3. Dropdown Menu Structure & Order (Direct to Canon G3030 + Download Bill Image only)
-runTest('3. Dropdown menu contains ONLY Direct to Canon G3030 and Download Bill Image', () => {
+// 3. Dropdown Menu Structure & Order (Direct to Canon G3030 + Download + Share)
+runTest('3. Dropdown menu contains Direct to Canon G3030, Download Bill Images, and Share All Bill Images', () => {
   const dropdownStart = printModalContent.indexOf('{/* Options Dropdown Menu */}');
   assert.ok(dropdownStart !== -1, 'Options Dropdown Menu section should exist');
   const dropdownSection = printModalContent.slice(dropdownStart);
 
   const canonIdx = dropdownSection.indexOf('Direct to Canon G3030');
-  const imageIdx = dropdownSection.indexOf('Download Bill Image');
+  const downloadIdx = dropdownSection.indexOf('Download All Bill Images (PNG)');
+  const shareIdx = dropdownSection.indexOf('Share All Bill Images');
 
   assert.ok(canonIdx !== -1, 'Direct to Canon G3030 must be present in dropdown');
-  assert.ok(imageIdx !== -1, 'Download Bill Image must be present in dropdown');
-  assert.ok(canonIdx < imageIdx, 'Direct to Canon G3030 must precede Download Bill Image');
+  assert.ok(downloadIdx !== -1, 'Download All Bill Images option must be present in dropdown');
+  assert.ok(shareIdx !== -1, 'Share All Bill Images option must be present in dropdown');
+
+  assert.ok(canonIdx < downloadIdx, 'Direct to Canon G3030 must precede Download option');
+  assert.ok(downloadIdx < shareIdx, 'Download option must precede Share option');
 
   // Verify other options are absent from the dropdown
   assert.strictEqual(dropdownSection.includes('Browser Print Preview'), false);
   assert.strictEqual(dropdownSection.includes('Download PDF'), false);
 });
 
-// 4. Download Bill Image Option & Icon
-runTest('4. "Download Bill Image" option is present in PrintModal dropdown with ImageDown icon', () => {
+// 4. Download Bill Images Option & Icon
+runTest('4. "Download Bill Image(s)" option is present in PrintModal dropdown with ImageDown icon', () => {
   assert.ok(
-    printModalContent.includes('Download Bill Image'),
-    '"Download Bill Image" text must be present in the dropdown menu'
+    printModalContent.includes('Download All Bill Images (PNG)') &&
+      printModalContent.includes('Download Bill Image (PNG)'),
+    'Adaptive Download Bill Image(s) labels must be present'
   );
   assert.ok(
     printModalContent.includes('ImageDown'),
     'ImageDown icon from lucide-react must be used for Download Bill Image'
   );
   assert.ok(
-    printModalContent.includes('handleDownloadImage'),
-    'handleDownloadImage click handler must be wired to the button'
+    printModalContent.includes('handleDownloadAllImages') ||
+      printModalContent.includes('handleDownloadImage'),
+    'Download click handler must be wired to the button'
   );
 });
 
-// 5. One-Click Image Export Engine (html-to-image, 3x pixel ratio, unscaled container)
-runTest('5. One-click image download logic captures isolated unscaled bill and uses 3x pixel ratio', () => {
+// 5. Share All Bill Images Option & Icon
+runTest('5. "Share All Bill Images" option is present in PrintModal dropdown with Share2 icon', () => {
+  assert.ok(
+    printModalContent.includes('Share All Bill Images') &&
+      printModalContent.includes('Share Bill Image'),
+    'Adaptive Share Bill Image(s) labels must be present'
+  );
+  assert.ok(
+    printModalContent.includes('Share2'),
+    'Share2 icon from lucide-react must be imported and used for Share option'
+  );
+  assert.ok(
+    printModalContent.includes('handleShareAllImages'),
+    'handleShareAllImages click handler must be wired to the button'
+  );
+});
+
+// 6. One-Click Image Export Engine (html-to-image, 3x pixel ratio, unscaled container)
+runTest('6. Image export captures isolated unscaled bill and uses 3x pixel ratio', () => {
   assert.ok(
     printModalContent.includes('pixelRatio: 3'),
     'Image export must use at least 3x pixel ratio for ultra-crisp resolution'
@@ -111,8 +134,8 @@ runTest('5. One-click image download logic captures isolated unscaled bill and u
   );
 });
 
-// 6. CPN A5 (148mm x 210mm) Physical Paper Dimensions & Math
-runTest('6. A5 (148x210mm) portrait dimensions strictly defined and calculated at 96 DPI', () => {
+// 7. CPN A5 (148mm x 210mm) Physical Paper Dimensions & Math
+runTest('7. A5 (148x210mm) portrait dimensions strictly defined and calculated at 96 DPI', () => {
   assert.ok(printModalContent.includes('559.37'), 'A5 148mm width (559.37px) defined');
   assert.ok(printModalContent.includes('793.70'), 'A5 210mm height (793.70px) defined');
 
@@ -126,40 +149,52 @@ runTest('6. A5 (148x210mm) portrait dimensions strictly defined and calculated a
   assert.ok(Math.abs(actualRatio - targetRatio) < 0.001, 'A5 aspect ratio matches ISO A5 standard');
 });
 
-// 7. Meaningful Filename Format
-runTest('7. Meaningful filename format matches specification (e.g. Bill_CPN-0005_Customer_2026-11-17.png)', () => {
+// 8. Meaningful Dynamic Filename Format for Multi-Page and Single-Page Bills
+runTest('8. Dynamic filename format supports multi-page (CPN-0091-Page-1.png, CPN-0091-Page-2.png) and single-page (CPN-0091.png)', () => {
   assert.ok(
-    printModalContent.includes('Bill_${billNum}_'),
-    'Filename prefix Bill_${billNum}_ should be used'
+    printModalContent.includes('${billNum}-Page-${i + 1}.png'),
+    'Multi-page bills must generate ${billNum}-Page-${i + 1}.png'
+  );
+  assert.ok(
+    printModalContent.includes('${billNum}.png'),
+    'Single-page bills must generate ${billNum}.png'
   );
   assert.ok(
     printModalContent.includes('.png'),
     'Exported image filename extension must be .png'
   );
-  assert.ok(
-    printModalContent.includes('pageSuffix'),
-    'Multi-sheet bills must include page suffix (e.g. _Page1, _Page2)'
-  );
 });
 
-// 8. Device Support: Mobile Share (Android/iOS) + Desktop Download Fallback
-runTest('8. Device-specific behaviour: Web Share API for mobile + browser download fallback', () => {
+// 9. Native Multi-File Sharing & WhatsApp Support
+runTest('9. Web Share API receives all files in a single navigator.share call for multi-file WhatsApp sharing', () => {
   assert.ok(
     printModalContent.includes('navigator.canShare'),
-    'Must check navigator.canShare for file sharing support'
+    'Must check navigator.canShare with files array'
   );
   assert.ok(
-    printModalContent.includes('navigator.share'),
-    'Must support navigator.share for mobile sheet (Save to Photos / WhatsApp)'
+    printModalContent.includes('files: allFiles'),
+    'navigator.share must receive array of all page files together in one call'
   );
   assert.ok(
-    printModalContent.includes('a.download = filename'),
-    'Must support standard browser download trigger for desktop and mobile fallback'
+    printModalContent.includes('All ${renderedPages.length} bill pages downloaded. You can attach them together in WhatsApp.'),
+    'Informative fallback message when native sharing is unavailable'
   );
 });
 
-// 9. Existing Direct Print to Canon G3030 Preserved
-runTest('9. Direct print to Canon G3030 preserved', () => {
+// 10. Multi-Page Download Spacing to Prevent Browser Blocking
+runTest('10. Multi-page sequential download paces triggers by 400ms to avoid browser download popup blockers', () => {
+  assert.ok(
+    printModalContent.includes('setTimeout(r, 400)'),
+    'Must space successive page downloads by 400ms'
+  );
+  assert.ok(
+    printModalContent.includes('a.download = page.filename'),
+    'Must trigger download for each page filename'
+  );
+});
+
+// 11. Existing Direct Print to Canon G3030 Preserved
+runTest('11. Direct print to Canon G3030 preserved', () => {
   assert.ok(printModalContent.includes('handleDirectPrint'), 'Direct print to Canon G3030 preserved');
 });
 

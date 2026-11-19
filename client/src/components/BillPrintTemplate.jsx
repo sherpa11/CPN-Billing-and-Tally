@@ -140,12 +140,23 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
       ? bill.grandTotal
       : Math.round((todayTotal + previousBalance) * 100) / 100;
 
-  const discount = bill.discount || 0;
+  const isSupplierBill = Boolean(
+    bill.isPurchase ||
+    bill.purchaseNumber ||
+    bill.purchaseNumberFormatted ||
+    bill.supplierName ||
+    bill.supplier ||
+    bill.billType === 'purchase'
+  );
+
+  const discount = isSupplierBill ? 0 : (bill.discount || 0);
 
   const varavu =
     bill.varavu !== undefined && bill.varavu !== null
       ? bill.varavu
-      : bill.cashReceived || 0;
+      : bill.cashReceived !== undefined && bill.cashReceived !== null
+      ? bill.cashReceived
+      : bill.cashPaid || 0;
 
   const closingBalance =
     bill.closingBalance !== undefined && bill.closingBalance !== null
@@ -423,7 +434,7 @@ export const BillPrintTemplate = ({ bill, settings, masterVegetables = [] }) => 
                     <span className="font-tamil font-black text-black text-[17px] sm:text-[18px] tracking-normal select-none">
                       செலுத்திய தொகை :
                     </span>
-                    {discount > 0 && (
+                    {discount > 0 && !isSupplierBill && (
                       <span className="font-mono-num font-bold text-amber-900 text-[12px] whitespace-nowrap ml-1">
                         (தள்ளுபடி: ₹{formatCurrency(discount)})
                       </span>

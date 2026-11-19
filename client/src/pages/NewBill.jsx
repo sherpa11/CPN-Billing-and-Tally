@@ -408,16 +408,16 @@ export const NewBill = () => {
   });
 
   const parsedPrevBalance = round2(previousBalance || 0);
-  const parsedDiscount = round2(discount || 0);
+  const effectiveDiscount = partyType === 'supplier' ? 0 : round2(discount || 0);
+  const parsedDiscount = effectiveDiscount;
   const parsedVaravu = round2(varavu !== '' ? varavu : cashReceived || 0);
 
   // 1. Today's Total = todayTotal
   // 2. Previous Balance = parsedPrevBalance
   // 3. Total = Today's Total + Previous Balance
   const total = add2(todayTotal, parsedPrevBalance);
-  // 4. Discount = parsedDiscount
-  // 5. Varavu = parsedVaravu
-  // 6. Closing Balance = Total - Discount - Varavu
+  // Supplier: Closing Balance = Total - Varavu (No Discount row)
+  // Customer: Closing Balance = Total - Discount - Varavu
   const closingBalance = sub2(sub2(total, parsedDiscount), parsedVaravu);
 
   // Keyboard navigation across cells: RATE -> PARTICULARS -> BAG -> WEIGHT -> AMOUNT -> next row RATE
@@ -567,7 +567,7 @@ export const NewBill = () => {
               amount: Number(it.amount) || 0,
             })),
             previousBalance: parsedPrevBalance,
-            discount: parsedDiscount,
+            discount: 0,
             varavu: parsedVaravu,
             cashPaid: parsedVaravu,
             todayTotal,
@@ -1218,32 +1218,34 @@ export const NewBill = () => {
                 <td className="no-print"></td>
               </tr>
 
-              {/* 4. DISCOUNT / தள்ளுபடி */}
-              <tr className="border-b border-gray-200 bg-white font-bold text-sm">
-                <td className="py-2.5 px-3">&nbsp;</td>
-                <td colSpan={3} className="py-2.5 px-3 text-left font-bold text-gray-800">
-                  4. தள்ளுபடி : (Discount)
-                </td>
-                <td className="py-2.5 px-3 text-right">
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={discount}
-                    onChange={(e) => setDiscount(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full text-right py-1 px-2 font-mono-num font-extrabold text-amber-900 border-2 border-amber-300 rounded-lg focus:border-[#034D28] outline-none text-sm bg-amber-50/50"
-                  />
-                </td>
-                <td className="no-print"></td>
-              </tr>
+              {/* 4. DISCOUNT / தள்ளுபடி (Only for Customer bills; completely removed for Supplier Purchase bills) */}
+              {partyType !== 'supplier' && (
+                <tr className="border-b border-gray-200 bg-white font-bold text-sm">
+                  <td className="py-2.5 px-3">&nbsp;</td>
+                  <td colSpan={3} className="py-2.5 px-3 text-left font-bold text-gray-800">
+                    4. தள்ளுபடி : (Discount)
+                  </td>
+                  <td className="py-2.5 px-3 text-right">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={discount}
+                      onChange={(e) => setDiscount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full text-right py-1 px-2 font-mono-num font-extrabold text-amber-900 border-2 border-amber-300 rounded-lg focus:border-[#034D28] outline-none text-sm bg-amber-50/50"
+                    />
+                  </td>
+                  <td className="no-print"></td>
+                </tr>
+              )}
 
-              {/* 5. VARAVU / செலுத்திய தொகை */}
+              {/* VARAVU / செலுத்திய தொகை (Row 4 for Supplier, Row 5 for Customer) */}
               <tr className="border-b border-gray-200 bg-white font-bold text-sm">
                 <td className="py-2.5 px-3">&nbsp;</td>
                 <td colSpan={3} className="py-2.5 px-3 text-left font-bold text-gray-800">
                   {partyType === 'supplier'
-                    ? '5. செலுத்திய தொகை : (Amount Paid)'
+                    ? '4. செலுத்திய தொகை : (Amount Paid)'
                     : '5. செலுத்திய தொகை / வரவு : (Paid Amount / Varavu)'}
                 </td>
                 <td className="py-2.5 px-3 text-right">
@@ -1263,11 +1265,13 @@ export const NewBill = () => {
                 <td className="no-print"></td>
               </tr>
 
-              {/* 6. FINAL OUTSTANDING BALANCE / மொத்த பாக்கி (Highlighted in Light Green #d1fae5 with Bold Green Text) */}
+              {/* FINAL OUTSTANDING BALANCE / மொத்த பாக்கி (Row 5 for Supplier, Row 6 for Customer) */}
               <tr className="bg-[#d1fae5] border-t-2 border-b-2 border-[#034D28] font-black text-base text-[#034D28]">
                 <td className="py-3 px-3">&nbsp;</td>
                 <td colSpan={3} className="py-3 px-3 text-left tracking-wider font-black uppercase text-[#034D28]">
-                  6. மொத்த பாக்கி : (Final Balance = Total - Discount - Varavu)
+                  {partyType === 'supplier'
+                    ? '5. மொத்த பாக்கி : (Final Balance = Total - Varavu)'
+                    : '6. மொத்த பாக்கி : (Final Balance = Total - Discount - Varavu)'}
                 </td>
                 <td className="py-3 px-3 text-right font-mono-num text-lg font-black text-[#034D28]">
                   ₹{formatCurrency(closingBalance)}
@@ -1444,24 +1448,26 @@ export const NewBill = () => {
             <span className="font-mono-num font-black text-[#034D28] text-base">₹{formatCurrency(total)}</span>
           </div>
 
-          <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100 gap-2">
-            <span className="font-bold text-gray-700">4. தள்ளுபடி (Discount)</span>
-            <div className="w-32">
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={discount}
-                onChange={(e) => setDiscount(e.target.value)}
-                placeholder="0.00"
-                className="w-full text-right py-1.5 px-2.5 font-mono-num font-bold text-amber-900 border-2 border-amber-300 rounded-lg outline-none text-sm bg-amber-50/50"
-              />
+          {partyType !== 'supplier' && (
+            <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100 gap-2">
+              <span className="font-bold text-gray-700">4. தள்ளுபடி (Discount)</span>
+              <div className="w-32">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full text-right py-1.5 px-2.5 font-mono-num font-bold text-amber-900 border-2 border-amber-300 rounded-lg outline-none text-sm bg-amber-50/50"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex justify-between items-center text-sm py-1 border-b border-gray-100 gap-2">
             <span className="font-bold text-gray-700">
-              {partyType === 'supplier' ? '5. செலுத்திய தொகை (Amount Paid)' : '5. செலுத்திய தொகை / வரவு (Paid Amount)'}
+              {partyType === 'supplier' ? '4. செலுத்திய தொகை (Amount Paid)' : '5. செலுத்திய தொகை / வரவு (Paid Amount)'}
             </span>
             <div className="w-32">
               <input
@@ -1480,7 +1486,9 @@ export const NewBill = () => {
           </div>
 
           <div className="flex justify-between items-center py-2.5 px-3 bg-[#d1fae5] rounded-xl border-2 border-[#034D28]">
-            <span className="font-black text-sm uppercase text-[#034D28]">6. இறுதி மொத்தம் (Closing)</span>
+            <span className="font-black text-sm uppercase text-[#034D28]">
+              {partyType === 'supplier' ? '5. இறுதி மொத்தம் (Closing)' : '6. இறுதி மொத்தம் (Closing)'}
+            </span>
             <span className="font-mono-num font-black text-[#034D28] text-lg">₹{formatCurrency(closingBalance)}</span>
           </div>
         </div>
