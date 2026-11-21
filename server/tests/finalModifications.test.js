@@ -246,11 +246,30 @@ async function run() {
     assert(reportsSource.includes('Print Report'), 'Print Report button must be retained');
   });
 
-  it('4.2 handleDownloadPdf slices multi-page A4 canvas and saves directly without print dialog', () => {
+  it('4.2 handleDownloadPdf renders multi-page A4 landscape pages with non-blank verification', () => {
     assert(reportsSource.includes('toPng'), 'toPng from html-to-image must be used for rendering');
     assert(reportsSource.includes('jsPDF'), 'jsPDF must be instantiated for direct client PDF creation');
     assert(reportsSource.includes("pdf.save("), 'pdf.save must be called to download file directly');
     assert(reportsSource.includes('CPN_Customer_Outstanding_'), 'Filename format must match CPN_Customer_Outstanding_YYYY-MM-DD.pdf');
+    assert(reportsSource.includes('verifyNonBlank'), 'verifyNonBlank helper must be present to guarantee no blank PDFs');
+    assert(reportsSource.includes('chunkRows'), 'chunkRows helper must be present to paginate rows cleanly');
+  });
+
+  console.log('\n--- Section 5: Print Layout & Clipping Fixes ---');
+
+  const cssPath = path.join(__dirname, '../../client/src/index.css');
+  const cssSource = fs.readFileSync(cssPath, 'utf8');
+
+  it('5.1 Reports.jsx resets scrollLeft and injects A4 landscape @page rule before printing', () => {
+    assert(reportsSource.includes('el.scrollLeft = 0'), 'handlePrintReport must reset container scrollLeft');
+    assert(reportsSource.includes('A4 landscape'), 'Reports.jsx must inject A4 landscape rule for printing');
+  });
+
+  it('5.2 index.css enforces unclipped containers and exact 100% table layout for report print', () => {
+    assert(cssSource.includes('body.print-report-active main'), 'main must have print unclip rule');
+    assert(cssSource.includes('overflow: visible !important;'), 'Containers must force overflow: visible');
+    assert(cssSource.includes('table-layout: fixed !important;'), 'Table must enforce fixed layout');
+    assert(cssSource.includes('display: table-header-group !important;'), 'thead must repeat on every page');
   });
 
   // Clean up test records

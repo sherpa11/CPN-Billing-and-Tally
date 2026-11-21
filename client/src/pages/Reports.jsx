@@ -12,9 +12,11 @@ import {
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import api from '../api/axios';
+import { useSettings } from '../context/SettingsContext';
 import { formatCurrency, formatNumber } from '../utils/math';
 
 export const Reports = () => {
+  const { settings = {} } = useSettings() || {};
   const [activeTab, setActiveTab] = useState('daily');
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [startDate, setStartDate] = useState(() => {
@@ -67,9 +69,25 @@ export const Reports = () => {
 
   // Handle dedicated A4 report printing lifecycle
   const handlePrintReport = () => {
+    // 1. Reset all container horizontal scrolls so nothing is printed clipped off to the left
+    document.querySelectorAll('.overflow-x-auto, .overflow-auto, main, #root').forEach((el) => {
+      el.scrollLeft = 0;
+    });
+
+    // 2. Inject landscape page rule for reports
+    let styleEl = document.getElementById('report-print-page-style');
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = 'report-print-page-style';
+      styleEl.innerHTML = `@page { size: A4 landscape; margin: 8mm 10mm 10mm 10mm; }`;
+      document.head.appendChild(styleEl);
+    }
+
     document.body.classList.add('print-report-active');
     const cleanup = () => {
       document.body.classList.remove('print-report-active');
+      const injected = document.getElementById('report-print-page-style');
+      if (injected) injected.remove();
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
@@ -79,10 +97,22 @@ export const Reports = () => {
   // Keyboard shortcut Ctrl+P / window print lifecycle hook
   useEffect(() => {
     const handleBeforePrint = () => {
+      document.querySelectorAll('.overflow-x-auto, .overflow-auto, main, #root').forEach((el) => {
+        el.scrollLeft = 0;
+      });
+      let styleEl = document.getElementById('report-print-page-style');
+      if (!styleEl) {
+        styleEl = document.createElement('style');
+        styleEl.id = 'report-print-page-style';
+        styleEl.innerHTML = `@page { size: A4 landscape; margin: 8mm 10mm 10mm 10mm; }`;
+        document.head.appendChild(styleEl);
+      }
       document.body.classList.add('print-report-active');
     };
     const handleAfterPrint = () => {
       document.body.classList.remove('print-report-active');
+      const injected = document.getElementById('report-print-page-style');
+      if (injected) injected.remove();
     };
     window.addEventListener('beforeprint', handleBeforePrint);
     window.addEventListener('afterprint', handleAfterPrint);
@@ -90,6 +120,8 @@ export const Reports = () => {
       window.removeEventListener('beforeprint', handleBeforePrint);
       window.removeEventListener('afterprint', handleAfterPrint);
       document.body.classList.remove('print-report-active');
+      const injected = document.getElementById('report-print-page-style');
+      if (injected) injected.remove();
     };
   }, []);
 
@@ -213,119 +245,382 @@ export const Reports = () => {
         } catch {}
       }
 
-      const printHeader = document.querySelector('.report-print-header');
-      const reportCard = document.querySelector('.report-card');
+      const todayStr = new Date().toISOString().split('T')[0];
+      const todayFormatted = new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
 
-      if (!reportCard) {
-        throw new Error('Report content not found');
+      // Prepare report specific columns, rows, totals, and metadata
+      let title = '';
+      let subtitle = '';
+      let filename = `CPN_Report_${todayStr}.pdf`;
+      let columns = [];
+      let rowData = [];
+      let totalsData = null;
+
+      if (activeTab === 'outstanding') {
+        title = 'வாடிக்கையாளர் நிலுவைத் தொகை அறிக்கை (Customer Outstanding Balance Ledger)';
+        subtitle = `As of: ${todayFormatted}`;
+        filename = `CPN_Customer_Outstanding_${todayStr}.pdf`;
+        columns = [
+          { label: '#', width: '4.5%', align: 'center' },
+          { label: 'Customer Name', width: '25.5%', align: 'left', bold: true },
+          { label: 'Old Balance (₹)', width: '14%', align: 'right' },
+          { label: 'Latest Bill Total (₹)', width: '14%', align: 'right' },
+          { label: 'Total Outstanding (₹)', width: '14%', align: 'right', bold: true, color: '#034D28' },
+          { label: 'Paid (₹)', width: '14%', align: 'right', color: '#065f46' },
+          { label: 'New Balance (₹)', width: '14.5%', align: 'right', bold: true, color: '#78350f', fontSize: '14px' },
+        ];
+        rowData = filteredOutstanding.map((c, idx) => [
+          idx + 1,
+          c.name || 'Unknown',
+          `₹${formatCurrency(c.oldBalance)}`,
+          `₹${formatCurrency(c.latestBillTotal)}`,
+          `₹${formatCurrency(c.totalOutstanding)}`,
+          `₹${formatCurrency(c.paid)}`,
+          `₹${formatCurrency(c.newBalance)}`,
+        ]);
+        totalsData = [
+          `TOTAL (${filteredOutstanding.length} Customers)`,
+          `₹${formatCurrency(sumOldBalance)}`,
+          `₹${formatCurrency(sumLatestBillTotal)}`,
+          `₹${formatCurrency(sumTotalOutstanding)}`,
+          `₹${formatCurrency(sumPaid)}`,
+          `₹${formatCurrency(sumNewBalance)}`,
+        ];
+      } else if (activeTab === 'daily') {
+        title = 'தினசரி விற்பனை அறிக்கை (Daily Billing Report)';
+        subtitle = `Date: ${new Date(selectedDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+        filename = `CPN_Daily_Report_${selectedDate}.pdf`;
+        columns = [
+          { label: '#', width: '4%', align: 'center' },
+          { label: 'Bill No', width: '13%', align: 'center', bold: true },
+          { label: 'Customer', width: '25%', align: 'left', bold: true },
+          { label: 'Bags', width: '8%', align: 'right' },
+          { label: 'Weight (kg)', width: '10%', align: 'right' },
+          { label: 'Debit (₹)', width: '13%', align: 'right', bold: true },
+          { label: 'Paid (₹)', width: '13%', align: 'right', color: '#065f46' },
+          { label: 'Closing (₹)', width: '14%', align: 'right', color: '#78350f', bold: true },
+        ];
+        rowData = dailyBills.map((b, idx) => [
+          idx + 1,
+          b.billNumberFormatted,
+          b.customerName,
+          formatNumber(b.totalBag),
+          formatNumber(b.totalWeight),
+          `₹${formatCurrency(b.totalDebit)}`,
+          `₹${formatCurrency(b.cashReceived)}`,
+          `₹${formatCurrency(b.closingBalance)}`,
+        ]);
+        totalsData = [
+          `TOTAL (${dailyBills.length} Bills)`,
+          formatNumber(dailyTotals.totalBags),
+          formatNumber(dailyTotals.totalWeight),
+          `₹${formatCurrency(dailyTotals.totalDebit)}`,
+          `₹${formatCurrency(dailyTotals.totalCashCollected)}`,
+          '-',
+        ];
+      } else if (activeTab === 'sales') {
+        title = 'தேதி வாரியான விற்பனை அறிக்கை (Date-wise Sales Summary)';
+        subtitle = `Period: ${new Date(startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} to ${new Date(endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+        filename = `CPN_Datewise_Sales_${startDate}_to_${endDate}.pdf`;
+        columns = [
+          { label: '#', width: '5%', align: 'center' },
+          { label: 'Date', width: '18%', align: 'left', bold: true },
+          { label: 'Bills Count', width: '14%', align: 'center' },
+          { label: 'Total Bags', width: '14%', align: 'right' },
+          { label: 'Total Weight (kg)', width: '16%', align: 'right' },
+          { label: 'Total Debit (₹)', width: '16%', align: 'right', bold: true },
+          { label: 'Collection (₹)', width: '17%', align: 'right', color: '#065f46', bold: true },
+        ];
+        rowData = salesList.map((r, idx) => [
+          idx + 1,
+          r.date,
+          r.billCount,
+          formatNumber(r.totalBags),
+          formatNumber(r.totalWeight),
+          `₹${formatCurrency(r.totalDebit)}`,
+          `₹${formatCurrency(r.cashReceived)}`,
+        ]);
+      } else if (activeTab === 'vegetables') {
+        title = 'காய்கறி வாரியான அறிக்கை (Vegetable-wise Movement Report)';
+        subtitle = `Period: ${new Date(startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })} to ${new Date(endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+        filename = `CPN_Vegetable_Movement_${startDate}_to_${endDate}.pdf`;
+        columns = [
+          { label: '#', width: '6%', align: 'center' },
+          { label: 'Vegetable / பொருள்', width: '34%', align: 'left', bold: true },
+          { label: 'Total Bags / பை', width: '15%', align: 'right' },
+          { label: 'Total Weight (kg) / எடை', width: '17%', align: 'right' },
+          { label: 'Avg Rate (₹) / சராசரி விலை', width: '14%', align: 'right' },
+          { label: 'Total Revenue (₹) / வருவாய்', width: '14%', align: 'right', color: '#034D28', bold: true },
+        ];
+        rowData = vegList.map((v, idx) => [
+          idx + 1,
+          v.vegetable,
+          formatNumber(v.totalBags),
+          formatNumber(v.totalWeight),
+          `₹${formatCurrency(v.avgRate)}`,
+          `₹${formatCurrency(v.totalRevenue)}`,
+        ]);
+      } else if (activeTab === 'monthly') {
+        title = 'மாதாந்திர வணிக அறிக்கை (Monthly Performance Summary)';
+        subtitle = 'Historical Monthly Performance Summary';
+        filename = `CPN_Monthly_Summary_${todayStr}.pdf`;
+        columns = [
+          { label: '#', width: '8%', align: 'center' },
+          { label: 'Month / மாதம்', width: '30%', align: 'left', bold: true },
+          { label: 'Bills Count', width: '18%', align: 'center' },
+          { label: 'Total Debit (₹)', width: '22%', align: 'right', bold: true },
+          { label: 'Total Collection (₹)', width: '22%', align: 'right', color: '#065f46', bold: true },
+        ];
+        rowData = monthlyList.map((m, idx) => [
+          idx + 1,
+          m.month,
+          m.billCount,
+          `₹${formatCurrency(m.totalDebit)}`,
+          `₹${formatCurrency(m.totalCollection)}`,
+        ]);
       }
 
-      // Dedicated off-screen container matching A4 printable canvas (794px ~ 210mm at 96 DPI)
-      const container = document.createElement('div');
-      container.style.position = 'fixed';
-      container.style.left = '-99999px';
-      container.style.top = '0';
-      container.style.width = '794px';
-      container.style.background = '#ffffff';
-      container.style.padding = '20px';
-      container.style.boxSizing = 'border-box';
-      container.style.zIndex = '-9999';
-
-      if (printHeader) {
-        const headerClone = printHeader.cloneNode(true);
-        headerClone.style.display = 'block';
-        headerClone.style.marginBottom = '16px';
-        container.appendChild(headerClone);
+      if (rowData.length === 0) {
+        alert('No records available to export.');
+        return;
       }
 
-      const cardClone = reportCard.cloneNode(true);
-      cardClone.querySelectorAll('.no-print').forEach((el) => el.remove());
-      cardClone.querySelectorAll('.overflow-x-auto').forEach((el) => {
-        el.style.overflow = 'visible';
-      });
-      container.appendChild(cardClone);
+      // Chunk rows into discrete pages
+      const chunkRows = (rowsList) => {
+        if (rowsList.length <= 15) {
+          return [rowsList];
+        }
+        const pages = [];
+        pages.push(rowsList.slice(0, 16));
+        let start = 16;
+        while (start < rowsList.length) {
+          const remaining = rowsList.length - start;
+          if (remaining <= 16) {
+            pages.push(rowsList.slice(start));
+            break;
+          }
+          if (remaining <= 18) {
+            const take = Math.ceil(remaining / 2);
+            pages.push(rowsList.slice(start, start + take));
+            start += take;
+          } else {
+            pages.push(rowsList.slice(start, start + 18));
+            start += 18;
+          }
+        }
+        return pages;
+      };
 
-      document.body.appendChild(container);
+      const pageChunks = chunkRows(rowData);
+      const totalPages = pageChunks.length;
 
-      // Wait a moment for layout to settle
-      await new Promise((r) => setTimeout(r, 150));
+      // Verification helper to ensure image contains rendered content (not blank white)
+      const verifyNonBlank = async (dataUrl) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const testCanvas = document.createElement('canvas');
+              testCanvas.width = 60;
+              testCanvas.height = 40;
+              const ctx = testCanvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, 60, 40);
+              const data = ctx.getImageData(0, 0, 60, 40).data;
+              let nonWhitePixels = 0;
+              for (let i = 0; i < data.length; i += 4) {
+                if (data[i] < 220 || data[i + 1] < 220 || data[i + 2] < 220) {
+                  nonWhitePixels++;
+                }
+              }
+              resolve(nonWhitePixels > 10);
+            } catch (e) {
+              resolve(true);
+            }
+          };
+          img.onerror = () => resolve(false);
+          img.src = dataUrl;
+        });
+      };
 
-      const dataUrl = await toPng(container, {
-        quality: 0.95,
-        pixelRatio: 2,
-        backgroundColor: '#ffffff',
-      });
+      // Dedicated off-screen staging container
+      const stage = document.createElement('div');
+      stage.style.position = 'fixed';
+      stage.style.left = '0';
+      stage.style.top = '0';
+      stage.style.width = '1122px';
+      stage.style.zIndex = '-9999';
+      stage.style.opacity = '1';
+      stage.style.pointerEvents = 'none';
+      stage.style.background = '#ffffff';
+      document.body.appendChild(stage);
 
-      document.body.removeChild(container);
+      const pdf = new jsPDF('l', 'mm', 'a4');
 
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
+      for (let i = 0; i < totalPages; i++) {
+        if (i > 0) pdf.addPage('a4', 'l');
+        const isFirstPage = i === 0;
+        const isLastPage = i === totalPages - 1;
+        const pageRows = pageChunks[i];
 
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = 210;
-      const pdfHeight = 297;
-      const margin = 10;
-      const usableWidth = pdfWidth - 2 * margin; // 190mm
-      const usableHeight = pdfHeight - 2 * margin; // 277mm
+        const pageEl = document.createElement('div');
+        pageEl.style.width = '1122px';
+        pageEl.style.height = '794px';
+        pageEl.style.boxSizing = 'border-box';
+        pageEl.style.padding = '22px 30px';
+        pageEl.style.background = '#ffffff';
+        pageEl.style.color = '#111827';
+        pageEl.style.position = 'relative';
+        pageEl.style.fontFamily = "'Outfit', 'Mukta Malar', 'Noto Sans Tamil', sans-serif";
 
-      const imgWidthPx = img.width;
-      const imgHeightPx = img.height;
-      const pxPerMm = imgWidthPx / usableWidth;
-      const sliceHeightPx = Math.floor(usableHeight * pxPerMm);
-
-      let renderedHeightPx = 0;
-      let pageIndex = 0;
-
-      while (renderedHeightPx < imgHeightPx) {
-        if (pageIndex > 0) {
-          pdf.addPage();
+        let headerHtml = '';
+        if (isFirstPage) {
+          headerHtml = `
+            <div style="border-bottom: 2px solid #034D28; padding-bottom: 6px; margin-bottom: 10px; text-align: center;">
+              <div style="color: #034D28; font-size: 13px; font-weight: 700; margin-bottom: 3px;">
+                ${settings.tamilHeaderDeity || 'ஸ்ரீ பாப்பாட்டி ஆச்சி ஒச்சாண்டம்மன் துணை'}
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="width: 140px; text-align: left; font-size: 11px; color: #4b5563; line-height: 1.3;">
+                  <div style="font-weight: 700;">22-A, காந்தி மார்க்கெட்</div>
+                  <div>திண்டுக்கல்</div>
+                </div>
+                <div style="text-align: center;">
+                  <div style="color: #034D28; font-size: 26px; font-weight: 900; letter-spacing: -0.5px; line-height: 1;">
+                    ${settings.shopName || 'CPN VEGETABLES'}
+                  </div>
+                  <div style="color: #034D28; font-size: 13px; font-weight: 700; margin-top: 2px;">
+                    ${settings.tamilBusinessDescription || 'காய்கறி கமிஷன் மண்டி'} • Prop. CPN ராஜா
+                  </div>
+                </div>
+                <div style="width: 150px; text-align: right; font-size: 11px; color: #4b5563; font-weight: 700; line-height: 1.3;">
+                  <div>Ph: 97152 67025</div>
+                  <div>97882 29090</div>
+                </div>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #d1d5db; font-size: 12px;">
+                <span style="font-weight: 800; color: #034D28;">${title}</span>
+                <span style="font-weight: 700; color: #4b5563;">${subtitle}</span>
+                <span style="font-weight: 800; color: #034D28;">பக்கம் ${i + 1} / ${totalPages} (Page ${i + 1} of ${totalPages})</span>
+              </div>
+            </div>
+          `;
+        } else {
+          headerHtml = `
+            <div style="border-bottom: 2px solid #034D28; padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: #034D28; font-size: 16px; font-weight: 900;">${settings.shopName || 'CPN VEGETABLES'}</span>
+                <span style="color: #6b7280;">•</span>
+                <span style="font-weight: 800; color: #034D28;">${title.split('(')[0]}</span>
+              </div>
+              <span style="font-weight: 700; color: #4b5563;">${subtitle}</span>
+              <span style="font-weight: 800; color: #034D28;">பக்கம் ${i + 1} / ${totalPages} (Page ${i + 1} of ${totalPages})</span>
+            </div>
+          `;
         }
 
-        const currentSliceHeightPx = Math.min(sliceHeightPx, imgHeightPx - renderedHeightPx);
-        const canvas = document.createElement('canvas');
-        canvas.width = imgWidthPx;
-        canvas.height = currentSliceHeightPx;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const thsHtml = columns
+          .map(
+            (col) =>
+              `<th style="width: ${col.width}; padding: 7px 6px; text-align: ${col.align}; border: 1px solid #02381c; font-weight: 800;">${col.label}</th>`
+          )
+          .join('');
 
-        ctx.drawImage(
-          img,
-          0,
-          renderedHeightPx,
-          imgWidthPx,
-          currentSliceHeightPx,
-          0,
-          0,
-          imgWidthPx,
-          currentSliceHeightPx
-        );
+        let trsHtml = '';
+        pageRows.forEach((row, rIdx) => {
+          const bg = rIdx % 2 === 0 ? '#ffffff' : '#f8faf8';
+          const tdsHtml = row
+            .map((cell, cIdx) => {
+              const col = columns[cIdx];
+              const align = col ? col.align : 'left';
+              const isBold = col?.bold ? 'font-weight: 800;' : 'font-weight: 700;';
+              const color = col?.color ? `color: ${col.color};` : 'color: #111827;';
+              const fontSz = col?.fontSize ? `font-size: ${col.fontSize};` : 'font-size: 13px;';
+              const whiteSp = align === 'right' || align === 'center' ? 'white-space: nowrap;' : 'word-break: break-word;';
+              return `<td style="padding: 5px 6px; text-align: ${align}; border: 1px solid #d1d5db; ${isBold} ${color} ${fontSz} ${whiteSp}">${cell}</td>`;
+            })
+            .join('');
+          trsHtml += `<tr style="background-color: ${bg};">${tdsHtml}</tr>`;
+        });
 
-        const sliceDataUrl = canvas.toDataURL('image/png');
-        const sliceHeightMm = currentSliceHeightPx / pxPerMm;
+        let tfootHtml = '';
+        if (isLastPage && totalsData) {
+          const totalTdsHtml = totalsData
+            .map((val, idx) => {
+              if (idx === 0) {
+                return `<td colspan="2" style="padding: 6px 8px; text-align: left; border: 1px solid #d1d5db; font-size: 13.5px; font-weight: 900; color: #111827;">${val}</td>`;
+              }
+              const col = columns[idx + 1];
+              const align = col ? col.align : 'right';
+              const color = col?.color ? `color: ${col.color};` : 'color: #111827;';
+              return `<td style="padding: 6px 6px; text-align: ${align}; border: 1px solid #d1d5db; font-weight: 900; font-size: 14px; white-space: nowrap; ${color}">${val}</td>`;
+            })
+            .join('');
+          tfootHtml = `
+            <tfoot>
+              <tr style="background-color: #f3f4f6; font-weight: 900; border-top: 2px solid #034D28; border-bottom: 2px solid #034D28;">
+                ${totalTdsHtml}
+              </tr>
+            </tfoot>
+          `;
+        }
 
-        pdf.addImage(sliceDataUrl, 'PNG', margin, margin, usableWidth, sliceHeightMm);
+        pageEl.innerHTML = `
+          ${headerHtml}
+          <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+            <thead>
+              <tr style="background-color: #034D28; color: #ffffff; font-size: 12px; text-transform: uppercase;">
+                ${thsHtml}
+              </tr>
+            </thead>
+            <tbody>
+              ${trsHtml}
+            </tbody>
+            ${tfootHtml}
+          </table>
+          <div style="position: absolute; bottom: 14px; left: 30px; right: 30px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 4px;">
+            <span style="color: #034D28; font-weight: 700;">${settings.footerText || 'வாழ்க வளமுடன்'}</span>
+            <span>${settings.shopName || 'CPN VEGETABLES'} • Wholesale Billing & Management System, Dindigul</span>
+            <span style="font-weight: 700;">Page ${i + 1} of ${totalPages}</span>
+          </div>
+        `;
 
-        renderedHeightPx += currentSliceHeightPx;
-        pageIndex++;
+        stage.appendChild(pageEl);
+        await new Promise((r) => setTimeout(r, 60));
+
+        const dataUrl = await toPng(pageEl, {
+          width: 1122,
+          height: 794,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          cacheBust: true,
+        });
+
+        const isNonBlank = await verifyNonBlank(dataUrl);
+        if (!isNonBlank) {
+          throw new Error(`Page ${i + 1} image generation produced empty output.`);
+        }
+
+        pdf.addImage(dataUrl, 'JPEG', 0, 0, 297, 210, undefined, 'FAST');
+        stage.removeChild(pageEl);
       }
 
-      const todayStr = new Date().toISOString().split('T')[0];
-      let filename = `CPN_Report_${todayStr}.pdf`;
-      if (activeTab === 'outstanding') filename = `CPN_Customer_Outstanding_${todayStr}.pdf`;
-      else if (activeTab === 'daily') filename = `CPN_Daily_Report_${selectedDate}.pdf`;
-      else if (activeTab === 'sales') filename = `CPN_Datewise_Sales_${startDate}_to_${endDate}.pdf`;
-      else if (activeTab === 'vegetables') filename = `CPN_Vegetable_Movement_${startDate}_to_${endDate}.pdf`;
-      else if (activeTab === 'monthly') filename = `CPN_Monthly_Summary_${todayStr}.pdf`;
+      if (stage.parentNode) {
+        stage.parentNode.removeChild(stage);
+      }
 
       pdf.save(filename);
     } catch (err) {
       console.error('[Reports] Failed to generate PDF download:', err);
-      alert('Failed to generate PDF download. Please try again.');
+      alert('Failed to generate PDF download: ' + err.message);
     } finally {
+      const leftover = document.querySelector('div[style*="z-index: -9999"]');
+      if (leftover && leftover.parentNode) {
+        leftover.parentNode.removeChild(leftover);
+      }
       setIsDownloadingPdf(false);
     }
   };

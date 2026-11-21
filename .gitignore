@@ -33,6 +33,7 @@ logs/
 *.log
 
 # Test artifacts and temporary outputs
+scratch/
 test_*.pdf
 test_*.html
 *.pdf
