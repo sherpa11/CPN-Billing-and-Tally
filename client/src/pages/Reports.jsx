@@ -7,7 +7,10 @@ import {
   Users,
   Carrot,
   TrendingUp,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 import api from '../api/axios';
 import { formatCurrency, formatNumber } from '../utils/math';
 
@@ -20,6 +23,8 @@ export const Reports = () => {
     return d.toISOString().split('T')[0];
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   // Tab-specific isolated states to prevent any data-shape collisions or render crashes
   const [dailyData, setDailyData] = useState(null);
@@ -116,6 +121,214 @@ export const Reports = () => {
   const outstandingCustomers = Array.isArray(outstandingData?.data) ? outstandingData.data : [];
   const vegList = Array.isArray(vegetablesData) ? vegetablesData : [];
   const monthlyList = Array.isArray(monthlyData) ? monthlyData : [];
+
+  // Filtered customer outstanding list with search support
+  const filteredOutstanding = outstandingCustomers.filter((c) => {
+    if (!customerSearch.trim()) return true;
+    const term = customerSearch.trim().toLowerCase();
+    return c.name?.toLowerCase().includes(term);
+  });
+
+  const sumOldBalance = filteredOutstanding.reduce((acc, c) => acc + (c.oldBalance || 0), 0);
+  const sumLatestBillTotal = filteredOutstanding.reduce((acc, c) => acc + (c.latestBillTotal || 0), 0);
+  const sumTotalOutstanding = filteredOutstanding.reduce((acc, c) => acc + (c.totalOutstanding || 0), 0);
+  const sumPaid = filteredOutstanding.reduce((acc, c) => acc + (c.paid || 0), 0);
+  const sumNewBalance = filteredOutstanding.reduce((acc, c) => acc + (c.newBalance || 0), 0);
+
+  // Universal Direct CSV Download handler for currently active report tab
+  const handleDownloadCsv = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (activeTab === 'daily') {
+      exportCSV(
+        `CPN_Daily_Report_${selectedDate}`,
+        dailyBills.map((b) => ({
+          BillNo: b.billNumberFormatted,
+          Customer: b.customerName,
+          Bags: b.totalBag,
+          Weight: b.totalWeight,
+          Debit: b.totalDebit,
+          Credit: b.totalCredit,
+          CashReceived: b.cashReceived,
+          ClosingBalance: b.closingBalance,
+        }))
+      );
+    } else if (activeTab === 'sales') {
+      exportCSV(
+        `CPN_Datewise_Sales_${startDate}_to_${endDate}`,
+        salesList.map((r) => ({
+          Date: r.date,
+          BillsCount: r.billCount,
+          Bags: r.totalBags,
+          WeightKg: r.totalWeight,
+          TotalDebit: r.totalDebit,
+          CashReceived: r.cashReceived,
+        }))
+      );
+    } else if (activeTab === 'outstanding') {
+      exportCSV(
+        `CPN_Customer_Outstanding_${todayStr}`,
+        filteredOutstanding.map((c, idx) => ({
+          SNo: idx + 1,
+          CustomerName: c.name,
+          OldBalance: c.oldBalance || 0,
+          LatestBillTotal: c.latestBillTotal || 0,
+          TotalOutstanding: c.totalOutstanding || 0,
+          Paid: c.paid || 0,
+          NewBalance: c.newBalance || 0,
+        }))
+      );
+    } else if (activeTab === 'vegetables') {
+      exportCSV(
+        `CPN_Vegetable_Movement_${startDate}_to_${endDate}`,
+        vegList.map((v) => ({
+          Vegetable: v.vegetable,
+          BagsSold: v.totalBags,
+          WeightKg: v.totalWeight,
+          AvgRatePerKg: v.avgRate,
+          TotalRevenue: v.totalRevenue,
+        }))
+      );
+    } else if (activeTab === 'monthly') {
+      exportCSV(
+        `CPN_Monthly_Summary_${todayStr}`,
+        monthlyList.map((m) => ({
+          Month: m.month,
+          BillsCount: m.billCount,
+          TotalDebit: m.totalDebit,
+          TotalCollection: m.totalCollection,
+        }))
+      );
+    }
+  };
+
+  // Universal Direct PDF Download handler for all reports without opening browser print dialog
+  const handleDownloadPdf = async () => {
+    if (isDownloadingPdf) return;
+    try {
+      setIsDownloadingPdf(true);
+
+      if (document.fonts && document.fonts.ready) {
+        try {
+          await document.fonts.ready;
+        } catch {}
+      }
+
+      const printHeader = document.querySelector('.report-print-header');
+      const reportCard = document.querySelector('.report-card');
+
+      if (!reportCard) {
+        throw new Error('Report content not found');
+      }
+
+      // Dedicated off-screen container matching A4 printable canvas (794px ~ 210mm at 96 DPI)
+      const container = document.createElement('div');
+      container.style.position = 'fixed';
+      container.style.left = '-99999px';
+      container.style.top = '0';
+      container.style.width = '794px';
+      container.style.background = '#ffffff';
+      container.style.padding = '20px';
+      container.style.boxSizing = 'border-box';
+      container.style.zIndex = '-9999';
+
+      if (printHeader) {
+        const headerClone = printHeader.cloneNode(true);
+        headerClone.style.display = 'block';
+        headerClone.style.marginBottom = '16px';
+        container.appendChild(headerClone);
+      }
+
+      const cardClone = reportCard.cloneNode(true);
+      cardClone.querySelectorAll('.no-print').forEach((el) => el.remove());
+      cardClone.querySelectorAll('.overflow-x-auto').forEach((el) => {
+        el.style.overflow = 'visible';
+      });
+      container.appendChild(cardClone);
+
+      document.body.appendChild(container);
+
+      // Wait a moment for layout to settle
+      await new Promise((r) => setTimeout(r, 150));
+
+      const dataUrl = await toPng(container, {
+        quality: 0.95,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff',
+      });
+
+      document.body.removeChild(container);
+
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = 210;
+      const pdfHeight = 297;
+      const margin = 10;
+      const usableWidth = pdfWidth - 2 * margin; // 190mm
+      const usableHeight = pdfHeight - 2 * margin; // 277mm
+
+      const imgWidthPx = img.width;
+      const imgHeightPx = img.height;
+      const pxPerMm = imgWidthPx / usableWidth;
+      const sliceHeightPx = Math.floor(usableHeight * pxPerMm);
+
+      let renderedHeightPx = 0;
+      let pageIndex = 0;
+
+      while (renderedHeightPx < imgHeightPx) {
+        if (pageIndex > 0) {
+          pdf.addPage();
+        }
+
+        const currentSliceHeightPx = Math.min(sliceHeightPx, imgHeightPx - renderedHeightPx);
+        const canvas = document.createElement('canvas');
+        canvas.width = imgWidthPx;
+        canvas.height = currentSliceHeightPx;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.drawImage(
+          img,
+          0,
+          renderedHeightPx,
+          imgWidthPx,
+          currentSliceHeightPx,
+          0,
+          0,
+          imgWidthPx,
+          currentSliceHeightPx
+        );
+
+        const sliceDataUrl = canvas.toDataURL('image/png');
+        const sliceHeightMm = currentSliceHeightPx / pxPerMm;
+
+        pdf.addImage(sliceDataUrl, 'PNG', margin, margin, usableWidth, sliceHeightMm);
+
+        renderedHeightPx += currentSliceHeightPx;
+        pageIndex++;
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      let filename = `CPN_Report_${todayStr}.pdf`;
+      if (activeTab === 'outstanding') filename = `CPN_Customer_Outstanding_${todayStr}.pdf`;
+      else if (activeTab === 'daily') filename = `CPN_Daily_Report_${selectedDate}.pdf`;
+      else if (activeTab === 'sales') filename = `CPN_Datewise_Sales_${startDate}_to_${endDate}.pdf`;
+      else if (activeTab === 'vegetables') filename = `CPN_Vegetable_Movement_${startDate}_to_${endDate}.pdf`;
+      else if (activeTab === 'monthly') filename = `CPN_Monthly_Summary_${todayStr}.pdf`;
+
+      pdf.save(filename);
+    } catch (err) {
+      console.error('[Reports] Failed to generate PDF download:', err);
+      alert('Failed to generate PDF download. Please try again.');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   // Report metadata for print letterhead
   const getReportMeta = () => {
@@ -215,14 +428,37 @@ export const Reports = () => {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={handlePrintReport}
-          className="px-4 py-2 border border-[#034D28] bg-white text-[#034D28] hover:bg-emerald-50 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-98"
-        >
-          <Printer className="w-4 h-4 text-[#034D28]" />
-          <span>Print Report</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={isDownloadingPdf}
+            onClick={handleDownloadPdf}
+            className="px-4 py-2 bg-[#034D28] text-white hover:bg-emerald-900 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm transition-all active:scale-98 disabled:opacity-60"
+            title="Download printable report as PDF"
+          >
+            <Download className="w-4 h-4 text-white" />
+            <span>{isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadCsv}
+            className="px-3.5 py-2 border border-emerald-300 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-98"
+            title="Download report data as CSV / Excel"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-800" />
+            <span>Download CSV</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePrintReport}
+            className="px-4 py-2 border border-[#034D28] bg-white text-[#034D28] hover:bg-emerald-50 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-2xs transition-all active:scale-98"
+          >
+            <Printer className="w-4 h-4 text-[#034D28]" />
+            <span>Print Report</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs Navigation (Hidden in print) */}
@@ -274,9 +510,29 @@ export const Reports = () => {
             </button>
           </div>
         ) : activeTab === 'outstanding' ? (
-          <div className="text-xs text-gray-700 font-bold flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#034D28]" />
-            <span>Showing all active customer outstanding debit ledger balances</span>
+          <div className="flex flex-wrap items-center justify-between w-full gap-2">
+            <div className="text-xs text-gray-700 font-bold flex items-center gap-2">
+              <Users className="w-4 h-4 text-[#034D28]" />
+              <span>Showing all active customer outstanding debit ledger balances</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder="Search customer name..."
+                value={customerSearch}
+                onChange={(e) => setCustomerSearch(e.target.value)}
+                className="px-3 py-1.5 border border-gray-300 rounded-xl text-xs font-bold focus:border-[#034D28] outline-none min-h-[38px] w-48 sm:w-64"
+              />
+              {customerSearch && (
+                <button
+                  type="button"
+                  onClick={() => setCustomerSearch('')}
+                  className="text-xs text-gray-500 hover:text-gray-800 font-bold px-2 py-1 cursor-pointer"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         ) : activeTab === 'monthly' ? (
           <div className="text-xs text-gray-700 font-bold flex items-center gap-2">
@@ -535,80 +791,102 @@ export const Reports = () => {
         ) : activeTab === 'outstanding' ? (
           /* TAB 3: CUSTOMER OUTSTANDING */
           <div className="space-y-4">
-            <div className="flex justify-between items-center border-b pb-3 no-print">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3 no-print">
               <div>
                 <h3 className="text-lg font-black text-gray-900">Customer Outstanding Balance Ledger</h3>
                 <p className="text-xs text-gray-500 font-medium">
-                  Total Outstanding Balance across {outstandingData?.totalCustomers || outstandingCustomers.length} customers:{' '}
+                  Total Outstanding Balance across {filteredOutstanding.length} customers:{' '}
                   <strong className="text-amber-800">
-                    ₹{formatCurrency(outstandingData?.totalOutstanding || 0)}
+                    ₹{formatCurrency(sumNewBalance)}
                   </strong>
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  exportCSV(
-                    'Customer_Outstanding',
-                    outstandingCustomers.map((c) => ({
-                      CustomerName: c.name,
-                      TamilName: c.tamilName,
-                      Phone: c.phone,
-                      OutstandingBalance: c.currentBalance,
-                    }))
-                  )
-                }
-                className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl flex items-center gap-1.5 cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Export CSV</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isDownloadingPdf}
+                  onClick={handleDownloadPdf}
+                  className="px-3 py-1.5 text-xs font-bold text-white bg-[#034D28] hover:bg-emerald-900 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-60"
+                  title="Download Customer Outstanding PDF"
+                >
+                  <Download className="w-3.5 h-3.5 text-white" />
+                  <span>{isDownloadingPdf ? 'Generating PDF...' : 'Download PDF'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadCsv}
+                  className="px-3 py-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-xl flex items-center gap-1.5 cursor-pointer border border-emerald-200"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Export CSV</span>
+                </button>
+              </div>
             </div>
 
-            {outstandingCustomers.length === 0 ? (
+            {filteredOutstanding.length === 0 ? (
               <div className="p-8 text-center text-gray-400 bg-gray-50 rounded-xl border border-dashed border-gray-200">
-                No customers with outstanding balances found.
+                {customerSearch ? `No customer found matching "${customerSearch}"` : 'No customers with outstanding balances found.'}
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs md:text-sm border-collapse report-outstanding-table">
+                <table className="w-full text-xs md:text-sm border-collapse report-outstanding-table min-w-[720px]">
                   <thead>
                     <tr className="bg-gray-100 border-b text-gray-700 font-bold uppercase text-[11px]">
                       <th className="py-2.5 px-3 text-center w-12">#</th>
                       <th className="py-2.5 px-3 text-left w-[34%] min-w-[180px]">Customer Name</th>
-                      <th className="py-2.5 px-3 text-left w-[22%]">Tamil Name</th>
-                      <th className="py-2.5 px-3 text-left w-[18%]">Mobile</th>
-                      <th className="py-2.5 px-3 text-right w-[26%] min-w-[150px]">Outstanding Balance (₹)</th>
+                      <th className="py-2.5 px-3 text-right">Old Balance (₹)</th>
+                      <th className="py-2.5 px-3 text-right">Latest Bill Total (₹)</th>
+                      <th className="py-2.5 px-3 text-right">Total Outstanding (₹)</th>
+                      <th className="py-2.5 px-3 text-right">Paid (₹)</th>
+                      <th className="py-2.5 px-3 text-right w-[26%] min-w-[150px]">New Balance (₹)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {outstandingCustomers.map((c, idx) => (
-                      <tr key={c._id} className="hover:bg-gray-50">
+                    {filteredOutstanding.map((c, idx) => (
+                      <tr key={c._id || idx} className="hover:bg-gray-50">
                         <td className="py-2.5 px-3 text-center font-mono-num font-bold text-gray-600 report-col-idx text-sm md:text-base">
                           {idx + 1}
                         </td>
                         <td className="py-2.5 px-3 report-customer-name font-black text-gray-950 text-lg md:text-xl tracking-tight">
                           {c.name}
                         </td>
-                        <td className="py-2.5 px-3 font-tamil text-emerald-900 font-bold report-col-tamil text-base md:text-lg">
-                          {c.tamilName || '-'}
+                        <td className="py-2.5 px-3 text-right font-mono-num font-bold text-gray-700 text-base md:text-lg whitespace-nowrap">
+                          ₹{formatCurrency(c.oldBalance)}
                         </td>
-                        <td className="py-2.5 px-3 font-mono-num text-gray-800 font-bold report-col-phone text-sm md:text-base">
-                          {c.phone || '-'}
+                        <td className="py-2.5 px-3 text-right font-mono-num font-bold text-gray-900 text-base md:text-lg whitespace-nowrap">
+                          ₹{formatCurrency(c.latestBillTotal)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono-num font-bold text-[#034D28] text-base md:text-lg whitespace-nowrap">
+                          ₹{formatCurrency(c.totalOutstanding)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono-num font-bold text-emerald-800 text-base md:text-lg whitespace-nowrap">
+                          ₹{formatCurrency(c.paid)}
                         </td>
                         <td className="py-2.5 px-3 text-right report-outstanding-amount font-mono-num font-black text-amber-900 text-lg md:text-xl whitespace-nowrap">
-                          ₹{formatCurrency(c.currentBalance)}
+                          ₹{formatCurrency(c.newBalance)}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr className="bg-gray-100 text-gray-900 font-extrabold border-t-2 border-gray-400">
-                      <td colSpan="4" className="py-3 px-3 text-left font-black text-base md:text-lg">
-                        TOTAL ({outstandingCustomers.length} Customers)
+                      <td colSpan="2" className="py-3 px-3 text-left font-black text-base md:text-lg">
+                        TOTAL ({filteredOutstanding.length} Customers)
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono-num font-black text-gray-800 text-base md:text-lg whitespace-nowrap">
+                        ₹{formatCurrency(sumOldBalance)}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono-num font-black text-gray-900 text-base md:text-lg whitespace-nowrap">
+                        ₹{formatCurrency(sumLatestBillTotal)}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono-num font-black text-[#034D28] text-base md:text-lg whitespace-nowrap">
+                        ₹{formatCurrency(sumTotalOutstanding)}
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono-num font-black text-emerald-800 text-base md:text-lg whitespace-nowrap">
+                        ₹{formatCurrency(sumPaid)}
                       </td>
                       <td className="py-3 px-3 text-right report-outstanding-total font-mono-num font-black text-amber-900 text-xl md:text-2xl whitespace-nowrap">
-                        ₹{formatCurrency(outstandingData?.totalOutstanding || outstandingCustomers.reduce((acc, c) => acc + (c.currentBalance || 0), 0))}
+                        ₹{formatCurrency(sumNewBalance)}
                       </td>
                     </tr>
                   </tfoot>

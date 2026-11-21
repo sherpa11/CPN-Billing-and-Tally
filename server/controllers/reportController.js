@@ -145,23 +145,157 @@ const getDateWiseSalesReport = async (req, res) => {
 // @route GET /api/reports/outstanding
 const getCustomerOutstandingReport = async (req, res) => {
   try {
-    const customers = await Customer.find({ isDeleted: false, currentBalance: { $gt: 0 } })
-      .select('name tamilName phone address marketStall currentBalance openingBalance lastTransactionDate')
+    const { search } = req.query;
+
+    const query = { isDeleted: false, currentBalance: { $gt: 0 } };
+    if (search && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      query.$or = [
+        { name: searchRegex },
+        { tamilName: searchRegex },
+        { phone: searchRegex },
+      ];
+    }
+
+    const customers = await Customer.find(query)
+      .select('name tamilName phone address marketStall currentBalance openingBalance lastTransactionDate createdAt')
       .sort({ currentBalance: -1 })
       .lean();
 
-    let totalOutstanding = 0;
-    customers.forEach((c) => {
-      totalOutstanding = round2(totalOutstanding + c.currentBalance);
+    if (customers.length === 0) {
+      return res.json({
+        success: true,
+        totalCustomers: 0,
+        totalOldBalance: 0,
+        totalLatestBillTotal: 0,
+        totalOutstanding: 0,
+        totalPaid: 0,
+        totalNewBalance: 0,
+        data: [],
+      });
+    }
+
+    const customerIds = customers.map((c) => c._id);
+
+    // 1. Fetch latest active bill for all customers in ONE efficient aggregation query
+    const latestBillsAgg = await Bill.aggregate([
+      { $match: { customer: { $in: customerIds }, status: 'active' } },
+      { $sort: { billDate: -1, billNumber: -1 } },
+      {
+        $group: {
+          _id: '$customer',
+          latestBill: { $first: '$$ROOT' },
+        },
+      },
+    ]);
+    const latestBillMap = new Map(latestBillsAgg.map((item) => [item._id.toString(), item.latestBill]));
+
+    // 2. Fetch all active payments for these customers
+    const payments = await Payment.find({
+      customer: { $in: customerIds },
+      status: 'active',
+    })
+      .select('customer bill amount paymentDate createdAt')
+      .lean();
+
+    // Group payments by customer
+    const paymentsByCustomer = new Map();
+    payments.forEach((p) => {
+      const cId = p.customer.toString();
+      if (!paymentsByCustomer.has(cId)) paymentsByCustomer.set(cId, []);
+      paymentsByCustomer.get(cId).push(p);
+    });
+
+    let sumOldBalance = 0;
+    let sumLatestBillTotal = 0;
+    let sumTotalOutstanding = 0;
+    let sumPaid = 0;
+    let sumNewBalance = 0;
+
+    const reportData = customers.map((c) => {
+      const cId = c._id.toString();
+      const latestBill = latestBillMap.get(cId);
+      const custPayments = paymentsByCustomer.get(cId) || [];
+
+      let oldBalance = 0;
+      let latestBillTotal = 0;
+      let totalOutstanding = 0;
+      let paid = 0;
+      let newBalance = round2(c.currentBalance || 0);
+
+      if (latestBill) {
+        // Customer has a recent bill
+        // Old Balance = customer's balance immediately before the latest bill
+        oldBalance = latestBill.previousBalance !== undefined && latestBill.previousBalance !== null
+          ? round2(latestBill.previousBalance)
+          : round2(c.openingBalance || 0);
+
+        // Latest Bill Total = total value of the latest bill
+        latestBillTotal = latestBill.todayTotal !== undefined && latestBill.todayTotal !== null
+          ? round2(latestBill.todayTotal)
+          : round2(latestBill.totalDebit || 0);
+
+        // Total Outstanding = Old Balance + Latest Bill Total
+        totalOutstanding = round2(oldBalance + latestBillTotal);
+
+        // Paid = amount paid against the latest bill/transaction
+        const billPaid = latestBill.varavu !== undefined && latestBill.varavu !== null
+          ? round2(latestBill.varavu)
+          : round2(latestBill.cashReceived || 0);
+
+        // Standalone payments made after the latest bill
+        const billTimestamp = new Date(latestBill.createdAt || latestBill.billDate).getTime();
+        const standaloneAfterBill = custPayments
+          .filter((p) => !p.bill && new Date(p.createdAt || p.paymentDate).getTime() > billTimestamp)
+          .reduce((sum, p) => round2(sum + p.amount), 0);
+
+        paid = round2(billPaid + standaloneAfterBill);
+
+        // New Balance = Total Outstanding - applicable payments/credits (matching ledger balance)
+        newBalance = round2(c.currentBalance || 0);
+      } else {
+        // Customer has NO recent bill: show Latest Bill Total as ₹0.00
+        latestBillTotal = 0;
+
+        const totalPaidByCustomer = custPayments.reduce((sum, p) => round2(sum + p.amount), 0);
+        oldBalance = round2(newBalance + totalPaidByCustomer);
+        totalOutstanding = oldBalance;
+        paid = totalPaidByCustomer;
+        newBalance = round2(c.currentBalance || 0);
+      }
+
+      sumOldBalance = round2(sumOldBalance + oldBalance);
+      sumLatestBillTotal = round2(sumLatestBillTotal + latestBillTotal);
+      sumTotalOutstanding = round2(sumTotalOutstanding + totalOutstanding);
+      sumPaid = round2(sumPaid + paid);
+      sumNewBalance = round2(sumNewBalance + newBalance);
+
+      return {
+        _id: c._id,
+        name: c.name,
+        oldBalance,
+        latestBillTotal,
+        totalOutstanding,
+        paid,
+        newBalance,
+        currentBalance: newBalance, // backwards compatibility
+        latestBillNumberFormatted: latestBill ? (latestBill.billNumberFormatted || `CPN-${latestBill.billNumber}`) : null,
+        latestBillDate: latestBill ? latestBill.billDate : null,
+      };
     });
 
     res.json({
       success: true,
-      totalCustomers: customers.length,
-      totalOutstanding,
-      data: customers,
+      totalCustomers: reportData.length,
+      totalOldBalance: sumOldBalance,
+      totalLatestBillTotal: sumLatestBillTotal,
+      totalOutstanding: sumTotalOutstanding,
+      totalPaid: sumPaid,
+      totalNewBalance: sumNewBalance,
+      data: reportData,
     });
   } catch (error) {
+    console.error('[Report] getCustomerOutstandingReport error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

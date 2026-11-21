@@ -344,9 +344,9 @@ export const NewBill = () => {
     });
   };
 
-  // Row addition
+  // Row addition - adds exactly 10 new empty item rows at once per click
   const handleAddRow = () => {
-    setItems((prev) => [...prev, createEmptyRow()]);
+    setItems((prev) => [...prev, ...Array.from({ length: 10 }, createEmptyRow)]);
   };
 
   // Row deletion
